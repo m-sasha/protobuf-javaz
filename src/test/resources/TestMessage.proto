@@ -3,8 +3,14 @@ syntax = "proto3";
 
 package test;
 
-message TestMessage{
+message TextMessage{
 
     string text = 1;
+
+}
+
+message IntMessage{
+
+    int32 value = 1;
 
 }

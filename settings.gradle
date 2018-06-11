@@ -1,2 +1,4 @@
 rootProject.name = 'protobuf-javaz'
+include 'runtime'
+include 'gen'
 

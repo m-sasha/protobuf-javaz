@@ -34,17 +34,21 @@ dependencies{
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
+
 // Distribution directory
 def distDir = file("$buildDir/dist")
+
 
 // Create an executable jar
 jar {
     destinationDir = distDir
+    archivesBaseName = 'protobuf-javaz-gen'
     manifest {
-        attributes 'Main-Class': 'com.maryanovsky.pbjz.ProtobufJavaZero'
+        attributes 'Main-Class': 'com.maryanovsky.pbjz.gen.ProtobufJavaZero'
         attributes 'Class-Path' : configurations.runtime.collect { it.getName() }.join(' ')
     }
 }
+
 
 // Copy dependency jars
 task copyRuntimeLibs(type: Copy){
@@ -52,12 +56,13 @@ task copyRuntimeLibs(type: Copy){
     from configurations.runtime
 }
 
+
 // Create executable script, which can be used as a protoc plugin
 task createExecutable{
     doLast{
-        File script = new File(distDir, "protobuf-javaz")
+        File script = new File(distDir, "protobuf-javaz-gen")
         script.text = """#!/bin/bash
-java -jar protobuf-javaz-1.0-SNAPSHOT.jar
+java -jar protobuf-javaz-gen-1.0-SNAPSHOT.jar
 """
         script.setExecutable(true, true)
     }

@@ -1,4 +1,4 @@
-package com.maryanovsky.pbjz;
+package com.maryanovsky.pbjz.gen;
 
 
 import com.squareup.javapoet.ClassName;
@@ -11,8 +11,6 @@ import static com.google.protobuf.compiler.PluginProtos.*;
 import static com.google.protobuf.DescriptorProtos.*;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
 import javax.lang.model.element.Modifier;
 
@@ -32,34 +30,39 @@ public class ProtobufJavaZero{
 				response.addFile(generateCodec(javaPackageName, descriptor.getName()));
 			}
 		}
-		
+
 		response.build().writeTo(System.out);
 	}
-	
-	
+
+
 	private static CodeGeneratorResponse.File generateCodec(String javaPackageName, String targetClassName){
 		String dirName = javaPackageName.replace('.', '/');
 		String codecClassName = targetClassName + "Codec";
 
 		TypeName targetType = ClassName.get(javaPackageName, targetClassName);
+		TypeName ioException = ClassName.get("java.io", "IOException");
+		TypeName codedOutputStream = ClassName.get("com.google.protobuf", "CodedOutputStream");
+		TypeName codedInputStream = ClassName.get("com.google.protobuf", "CodedInputStream");
 
 		MethodSpec encode = MethodSpec.methodBuilder("encode")
 				.addModifiers(Modifier.PUBLIC)
 				.returns(void.class)
-				.addParameter(targetType, "obj")
-				.addParameter(OutputStream.class, "out")
-				.addException(ClassName.get("java.io", "IOException"))
+				.addParameter(targetType, "value")
+				.addParameter(codedOutputStream, "out")
+				.addException(ioException)
 				.build();
 
 		MethodSpec decode = MethodSpec.methodBuilder("decode")
 				.addModifiers(Modifier.PUBLIC)
 				.returns(targetType)
-				.addParameter(InputStream.class, "in")
+				.addParameter(codedInputStream, "in")
+				.addException(ioException)
 				.addStatement("return null")
 				.build();
 
 		TypeSpec helloWorld = TypeSpec.classBuilder(codecClassName)
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+				.superclass(ClassName.get("pbjz.runtime", "Codec"))
 				.addMethod(encode)
 				.addMethod(decode)
 				.build();

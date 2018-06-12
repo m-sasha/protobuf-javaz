@@ -1,7 +1,7 @@
 buildscript{
 
     repositories {
-        mavenLocal()
+        mavenCentral()
         jcenter()
     }
 
@@ -28,8 +28,10 @@ repositories{
 
 
 dependencies{
+    compile 'com.intellij:annotations:+@jar'
     compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.5.1'
     compile 'com.squareup:javapoet:1.11.1'
+    compile project(':runtime')
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }

@@ -203,10 +203,10 @@ public abstract class Codec<T>{
 
 
 	/**
-	 * Writes the given value, encoded as a protobuf message. The difference between this method and
-	 * {@link #encode(CodedOutputStream, Object)} is that this method accepts {@code null} values.
+	 * Writes the given value, encoded as a protobuf message. This is the method to use in order
+	 * to write a value of the user-defined type.
 	 */
-	protected final void writeMessage(@NotNull CodedOutputStream output, @Nullable T value) throws IOException{
+	public final void writeMessage(@NotNull CodedOutputStream output, @Nullable T value) throws IOException{
 		if (value != null){
 			encode(output, value);
 		}

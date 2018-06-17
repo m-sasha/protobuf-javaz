@@ -41,6 +41,7 @@ dependencies{
 }
 
 
+// Configure protobuf to compile with our plugin (as well as the standard java one)
 protobuf {
 
     protoc {
@@ -63,8 +64,20 @@ protobuf {
 
 }
 
+// Add the java and javaz-generated sources to the test source path
+sourceSets{
 
-// Create an executable jar
+    test{
+        java{
+            srcDirs += 'build/generated/source/proto/test/java'
+            srcDirs += 'build/generated/source/proto/test/javaz'
+        }
+    }
+
+}
+
+
+// Create an executable jar of the plugin
 jar {
     destinationDir = distDir
     archivesBaseName = 'protobuf-javaz-gen'
@@ -75,14 +88,7 @@ jar {
 }
 
 
-// Copy dependency jars
-task copyRuntimeLibs(type: Copy){
-    into distDir
-    from configurations.runtime
-}
-
-
-// Create executable script, which can be used as a protoc plugin
+// Create an executable shell script, so that we can use it as a protoc plugin (it doesn't accept jars)
 task createExecutable{
     doFirst{
         File script = new File(distDir, "protobuf-javaz-gen")
@@ -94,5 +100,18 @@ java -jar protobuf-javaz-gen-1.0-SNAPSHOT.jar
     }
 }
 
-// Distribution task. Run this before the build task
+
+// Copy dependency jars
+task copyRuntimeLibs(type: Copy){
+    into distDir
+    from configurations.runtime
+}
+
+
+// Puts all the required files to run the code generator plugin at distDir
+// Run this before the build task
 task dist(dependsOn: [jar, copyRuntimeLibs, createExecutable]){}
+
+
+// We have to create the plugin in order to test it
+test.dependsOn dist

@@ -1,11 +1,11 @@
 package test;
 
 
-public class TextMessage{
+public class StringMessage{
 
 	private final String text;
 
-	public TextMessage(String text){
+	public StringMessage(String text){
 		this.text = text;
 	}
 

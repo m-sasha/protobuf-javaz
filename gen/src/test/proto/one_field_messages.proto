@@ -3,7 +3,7 @@ syntax = "proto3";
 
 package test;
 
-message TextMessage{
+message StringMessage{
 
     string text = 1;
 

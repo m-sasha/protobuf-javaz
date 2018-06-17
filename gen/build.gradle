@@ -16,6 +16,10 @@ plugins{
     id 'com.google.protobuf' version '0.8.5'
 }
 
+// Distribution directory
+def distDir = file("$buildDir/dist")
+
+
 group 'com.maryanovsky.protobuf-javaz'
 version '1.0-SNAPSHOT'
 
@@ -26,10 +30,9 @@ repositories{
 }
 
 
-
 dependencies{
     compile 'com.intellij:annotations:+@jar'
-    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.5.1'
+    compile 'com.google.protobuf:protobuf-java:3.5.1'
     compile 'com.squareup:javapoet:1.11.1'
     compile 'com.google.guava:guava:25.1-jre'
     compile project(':runtime')
@@ -38,8 +41,27 @@ dependencies{
 }
 
 
-// Distribution directory
-def distDir = file("$buildDir/dist")
+protobuf {
+
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.0.0'
+    }
+
+    plugins {
+        javaz{
+            path = "$distDir/protobuf-javaz-gen"
+        }
+    }
+
+    generateProtoTasks {
+        ofSourceSet('test').each{ task ->
+            task.plugins{
+                javaz { }
+            }
+        }
+    }
+
+}
 
 
 // Create an executable jar
@@ -62,14 +84,15 @@ task copyRuntimeLibs(type: Copy){
 
 // Create executable script, which can be used as a protoc plugin
 task createExecutable{
-    doLast{
+    doFirst{
         File script = new File(distDir, "protobuf-javaz-gen")
-        script.text = """#!/bin/bash
+        script.text = '''#!/bin/bash
+cd "${0%/*}"
 java -jar protobuf-javaz-gen-1.0-SNAPSHOT.jar
-"""
+'''
         script.setExecutable(true, true)
     }
 }
 
-// Distribution task
-task dist(dependsOn: [build, jar, copyRuntimeLibs, createExecutable]){}
+// Distribution task. Run this before the build task
+task dist(dependsOn: [jar, copyRuntimeLibs, createExecutable]){}

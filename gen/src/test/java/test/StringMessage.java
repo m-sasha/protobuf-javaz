@@ -1,6 +1,5 @@
 package test;
 
-
 public class StringMessage{
 
 	private final String text;

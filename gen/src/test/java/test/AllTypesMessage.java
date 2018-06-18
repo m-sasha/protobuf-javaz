@@ -2,7 +2,6 @@ package test;
 
 public class AllTypesMessage{
 
-
 	private double doubleField;
 	private float floatField;
 	private int int32Field;
@@ -19,11 +18,9 @@ public class AllTypesMessage{
 	private String stringField;
 	private byte[] bytesField;
 
-
 	public AllTypesMessage(){
 
 	}
-
 
 	public AllTypesMessage(double doubleField, float floatField, int int32Field, long int64Field, int uint32Field, long uint64Field, int sint32Field, long sint64Field, int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field, boolean boolField, String stringField, byte[] bytesField){
 		this.doubleField = doubleField;
@@ -43,95 +40,64 @@ public class AllTypesMessage{
 		this.bytesField = bytesField;
 	}
 
-
-
 	public double getDoubleField(){
 		return doubleField;
 	}
-
 
 	public float getFloatField(){
 		return floatField;
 	}
 
-
-
 	public int getInt32Field(){
 		return int32Field;
 	}
-
-
 
 	public long getInt64Field(){
 		return int64Field;
 	}
 
-
-
 	public int getUint32Field(){
 		return uint32Field;
 	}
-
-
 
 	public long getUint64Field(){
 		return uint64Field;
 	}
 
-
-
 	public int getSint32Field(){
 		return sint32Field;
 	}
-
-
 
 	public long getSint64Field(){
 		return sint64Field;
 	}
 
-
-
 	public int getFixed32Field(){
 		return fixed32Field;
 	}
-
-
 
 	public long getFixed64Field(){
 		return fixed64Field;
 	}
 
-
-
 	public int getSfixed32Field(){
 		return sfixed32Field;
 	}
-
-
 
 	public long getSfixed64Field(){
 		return sfixed64Field;
 	}
 
-
-
 	public boolean isBoolField(){
 		return boolField;
 	}
-
-
 
 	public String getStringField(){
 		return stringField;
 	}
 
-
-
 	public byte[] getBytesField(){
 		return bytesField;
 	}
-
-
 
 }

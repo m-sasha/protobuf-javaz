@@ -11,4 +11,5 @@ public class IntMessage{
 	public int getValue(){
 		return value;
 	}
+
 }

@@ -58,7 +58,7 @@ public class CodecTest{
 	 * Tests the encoding of {@link IntMessage} with the given list of values.
 	 */
 	private static void testIntMessageEncoding(int... values) throws IOException{
-		Codec<IntMessage> codec = new IntMessageCodec();
+		Codec<IntMessage> codec = IntMessageCodec.INSTANCE;
 		for (int value : values){
 			testEncodingEquals(
 					new IntMessage(value), codec,
@@ -72,7 +72,7 @@ public class CodecTest{
 	 * Tests the encoding of {@link StringMessage} with the given list of values.
 	 */
 	private static void testStringMessageEncoding(String... values) throws IOException{
-		Codec<StringMessage> codec = new StringMessageCodec();
+		Codec<StringMessage> codec = StringMessageCodec.INSTANCE;
 		for (String value : values){
 			testEncodingEquals(
 					new StringMessage(value), codec,
@@ -87,7 +87,7 @@ public class CodecTest{
 	 * values are converted into objects that are tested.
 	 */
 	private static void testInt2MessageEncoding(int... values) throws IOException{
-		Codec<Int2Message> codec = new Int2MessageCodec();
+		Codec<Int2Message> codec = Int2MessageCodec.INSTANCE;
 		for (int i = 0; i < values.length - 1; ++i){
 			testEncodingEquals(
 					new Int2Message(values[i], values[i+1]), codec,
@@ -105,7 +105,7 @@ public class CodecTest{
 	 * consecutive values are converted into objects that are tested.
 	 */
 	private static void testString2MessageEncoding(String... values) throws IOException{
-		Codec<String2Message> codec = new String2MessageCodec();
+		Codec<String2Message> codec = String2MessageCodec.INSTANCE;
 		for (int i = 0; i < values.length - 1; ++i){
 			testEncodingEquals(
 					new String2Message(values[i], values[i+1]), codec,
@@ -125,7 +125,7 @@ public class CodecTest{
 	 * are tested.
 	 */
 	private static void testStringIntMessageEncoding(Object... values) throws IOException{
-		Codec<StringIntMessage> codec = new StringIntMessageCodec();
+		Codec<StringIntMessage> codec = StringIntMessageCodec.INSTANCE;
 		for (int i = 0; i < values.length - 1; ++i){
 			String text = (String)values[i + i%2];
 			int number = (Integer)values[i + (i+1)%2];

@@ -6,6 +6,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.maryanovsky.pbjz.runtime.Codec;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
@@ -89,13 +90,15 @@ public class ProtobufJavaZero{
 	private static CodeGeneratorResponse.File generateCodec(String javaPackageName, DescriptorProto messageDescriptor){
 		String targetClassName = messageDescriptor.getName();
 		String dirName = javaPackageName.replace('.', '/');
-		String codecClassName = targetClassName + "Codec";
 
 		TypeName targetTypeName = ClassName.get(javaPackageName, targetClassName);
+		ClassName codecClassName = ClassName.get(javaPackageName, targetClassName + "Codec");
 
 		TypeSpec codec = TypeSpec.classBuilder(codecClassName)
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
 				.superclass(ParameterizedTypeName.get(ClassName.get(Codec.class), targetTypeName))
+				.addField(generateSingletonInstanceField(codecClassName))
+				.addMethod(generatePrivateConstructor())
 				.addMethod(generateEncodeMethod(targetTypeName, messageDescriptor))
 				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor))
 				.build();
@@ -104,7 +107,7 @@ public class ProtobufJavaZero{
 				.build();
 
 		return CodeGeneratorResponse.File.newBuilder()
-				.setName(dirName + "/" + codecClassName + ".java")
+				.setName(dirName + "/" + codecClassName.simpleName() + ".java")
 				.setContent(javaFile.toString())
 				.build();
 	}
@@ -194,6 +197,26 @@ public class ProtobufJavaZero{
 
 		return ((type == Type.TYPE_BOOL) ? "is" : "get") +
 				CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
+	}
+
+
+
+	/**
+	 * Generates a singleton codec instance field.
+	 */
+	private static FieldSpec generateSingletonInstanceField(@NotNull TypeName type){
+		return FieldSpec.builder(type, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+				.initializer("new $T()", type)
+				.build();
+	}
+
+
+
+	/**
+	 * Generates a private constructor for the codec.
+	 */
+	private static MethodSpec generatePrivateConstructor(){
+		return MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build();
 	}
 
 

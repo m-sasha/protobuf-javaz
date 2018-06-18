@@ -36,6 +36,9 @@ public class ProtobufJavaZero{
 
 
 
+	/**
+	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that write them.
+	 */
 	private static final Map<Type, String> WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
@@ -59,6 +62,10 @@ public class ProtobufJavaZero{
 	}
 
 
+
+	/**
+	 * The main method, invoked by protoc.
+	 */
 	public static void main(String[] args) throws IOException{
 		CodeGeneratorRequest request = CodeGeneratorRequest.parseFrom(System.in);
 
@@ -75,8 +82,12 @@ public class ProtobufJavaZero{
 	}
 
 
-	private static CodeGeneratorResponse.File generateCodec(String javaPackageName, DescriptorProto descriptor){
-		String targetClassName = descriptor.getName();
+
+	/**
+	 * Generates the codec for a single message type, as described by the given descriptor.
+	 */
+	private static CodeGeneratorResponse.File generateCodec(String javaPackageName, DescriptorProto messageDescriptor){
+		String targetClassName = messageDescriptor.getName();
 		String dirName = javaPackageName.replace('.', '/');
 		String codecClassName = targetClassName + "Codec";
 
@@ -85,8 +96,8 @@ public class ProtobufJavaZero{
 		TypeSpec codec = TypeSpec.classBuilder(codecClassName)
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
 				.superclass(ParameterizedTypeName.get(ClassName.get(Codec.class), targetTypeName))
-				.addMethod(generateEncodeMethod(targetTypeName, descriptor))
-				.addMethod(generateDecodeMethod(targetTypeName, descriptor))
+				.addMethod(generateEncodeMethod(targetTypeName, messageDescriptor))
+				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor))
 				.build();
 
 		JavaFile javaFile = JavaFile.builder(javaPackageName, codec)
@@ -99,6 +110,11 @@ public class ProtobufJavaZero{
 	}
 
 
+
+	/**
+	 * Generates a method that encodes objects of a user-defined type into messages described by the
+	 * given descriptor.
+	 */
 	private static MethodSpec generateEncodeMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
 		ParameterSpec output = notNull(CodedOutputStream.class, "output");
 		ParameterSpec value = notNull(target, "value");
@@ -128,6 +144,11 @@ public class ProtobufJavaZero{
 	}
 
 
+
+	/**
+	 * Generates a method that decodes messages described by the given descriptor into objects of
+	 * the user-defined type.
+	 */
 	private static MethodSpec generateDecodeMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
 		return MethodSpec.methodBuilder("decode")
 				.addModifiers(Modifier.PUBLIC)
@@ -141,16 +162,29 @@ public class ProtobufJavaZero{
 	}
 
 
+
+	/**
+	 * Creates a parameter spec with a {@code NotNull} annotation from the given parameter type and
+	 * name.
+	 */
 	private static ParameterSpec notNull(TypeName typeName, String paramName){
 		return ParameterSpec.builder(typeName, paramName).addAnnotation(NotNull.class).build();
 	}
 
 
+	/**
+	 * Creates a parameter spec with a {@code NotNull} annotation from the given parameter type and
+	 * name.
+	 */
 	private static ParameterSpec notNull(Class<?> clazz, String paramName){
 		return notNull(ClassName.get(clazz), paramName);
 	}
 
 
+	/**
+	 * Returns the name of the getter method we expect to be present in the user-defined type for a
+	 * message field of the given name, as defined in the proto file.
+	 */
 	private static String fieldGetterName(String name, Type type){
 		// If the field is boolean and already starts with "is_", don't duplicate it.
 		// For example: "is_red", should become "isRed", not "isIsRed".

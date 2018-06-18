@@ -100,4 +100,19 @@ public class AllTypesMessage{
 		return bytesField;
 	}
 
+
+	public static class InnerMessage{
+
+		private final int innerField;
+
+		public InnerMessage(int innerField){
+			this.innerField = innerField;
+		}
+
+		public int getInnerField(){
+			return innerField;
+		}
+
+	}
+
 }

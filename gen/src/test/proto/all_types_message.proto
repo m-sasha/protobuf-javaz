@@ -5,6 +5,10 @@ package test;
 
 message AllTypesMessage{
 
+    message InnerMessage{
+        int32 inner_field = 1;
+    }
+
 	double double_field = 1;
 	float float_field = 2;
 	int32 int32_field = 3;
@@ -20,7 +24,7 @@ message AllTypesMessage{
 	bool bool_field = 13;
 	string string_field = 14;
 	bytes bytes_field = 15;
-//	CustomMessage val16 = 16;
+//	InnerMessage val16 = 16;
 //	EnumMessage val17 = 17;
 
 }

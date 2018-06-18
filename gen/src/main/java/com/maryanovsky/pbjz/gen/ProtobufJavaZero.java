@@ -75,8 +75,18 @@ public class ProtobufJavaZero{
 		for (FileDescriptorProto fileDescriptor : request.getProtoFileList()){
 			String javaPackageName = fileDescriptor.getPackage();
 
-			for (DescriptorProto descriptor : fileDescriptor.getMessageTypeList())
-				response.addFile(generateCodec(javaPackageName, descriptor));
+			for (DescriptorProto descriptor : fileDescriptor.getMessageTypeList()){
+				TypeSpec codec = generateCodec(javaPackageName, null, descriptor);
+
+				JavaFile javaFile = JavaFile.builder(javaPackageName, codec)
+						.build();
+
+				String dirName = javaPackageName.replace('.', '/');
+				response.addFile(CodeGeneratorResponse.File.newBuilder()
+						.setName(dirName + "/" + codec.name + ".java")
+						.setContent(javaFile.toString())
+						.build());
+			}
 		}
 
 		response.build().writeTo(System.out);
@@ -85,31 +95,34 @@ public class ProtobufJavaZero{
 
 
 	/**
-	 * Generates the codec for a single message type, as described by the given descriptor.
+	 * Generates the {@link Codec} for a single message type, as described by the given descriptor.
 	 */
-	private static CodeGeneratorResponse.File generateCodec(String javaPackageName, DescriptorProto messageDescriptor){
+	private static TypeSpec generateCodec(String targetTypeJavaPackageName,
+										  @Nullable ClassName targetTypeOuterClassName,
+										  DescriptorProto messageDescriptor){
 		String targetClassName = messageDescriptor.getName();
-		String dirName = javaPackageName.replace('.', '/');
 
-		TypeName targetTypeName = ClassName.get(javaPackageName, targetClassName);
-		ClassName codecClassName = ClassName.get(javaPackageName, targetClassName + "Codec");
+		ClassName targetTypeName = (targetTypeOuterClassName == null) ?
+				ClassName.get(targetTypeJavaPackageName, targetClassName) :
+				targetTypeOuterClassName.nestedClass(targetClassName);
 
-		TypeSpec codec = TypeSpec.classBuilder(codecClassName)
+		ClassName codecClassName = ClassName.get("", targetClassName + "Codec");
+
+		TypeSpec.Builder builder = TypeSpec.classBuilder(codecClassName)
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
 				.superclass(ParameterizedTypeName.get(ClassName.get(Codec.class), targetTypeName))
 				.addField(generateSingletonInstanceField(codecClassName))
 				.addMethod(generatePrivateConstructor())
 				.addMethod(generateEncodeMethod(targetTypeName, messageDescriptor))
-				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor))
-				.build();
+				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor));
 
-		JavaFile javaFile = JavaFile.builder(javaPackageName, codec)
-				.build();
+		if (targetTypeOuterClassName != null)
+			builder.addModifiers(Modifier.STATIC);
 
-		return CodeGeneratorResponse.File.newBuilder()
-				.setName(dirName + "/" + codecClassName.simpleName() + ".java")
-				.setContent(javaFile.toString())
-				.build();
+		for (DescriptorProto descriptor : messageDescriptor.getNestedTypeList())
+			builder.addType(generateCodec(targetTypeJavaPackageName, targetTypeName, descriptor));
+
+		return builder.build();
 	}
 
 
@@ -135,10 +148,10 @@ public class ProtobufJavaZero{
 			String getterName = fieldGetterName(fieldDescriptor.getName(), fieldType);
 			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			// A primitive type
-			if (primitiveWriterMethodName != null)
+			if (primitiveWriterMethodName != null){ // A primitive type
 				methodBuilder.addStatement("$L($N, $L, $N.$N())",
 						primitiveWriterMethodName, output, fieldDescriptor.getNumber(), value, getterName);
+			}
 			else
 				System.err.println("Field type " + fieldType + " not supported yet");
 		}
@@ -191,9 +204,8 @@ public class ProtobufJavaZero{
 	private static String fieldGetterName(String name, Type type){
 		// If the field is boolean and already starts with "is_", don't duplicate it.
 		// For example: "is_red", should become "isRed", not "isIsRed".
-		if ((type == Type.TYPE_BOOL) && name.startsWith("is_")){
+		if ((type == Type.TYPE_BOOL) && name.startsWith("is_"))
 			name = name.substring(3);
-		}
 
 		return ((type == Type.TYPE_BOOL) ? "is" : "get") +
 				CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
@@ -204,7 +216,7 @@ public class ProtobufJavaZero{
 	/**
 	 * Generates a singleton codec instance field.
 	 */
-	private static FieldSpec generateSingletonInstanceField(@NotNull TypeName type){
+	private static FieldSpec generateSingletonInstanceField(@NotNull ClassName type){
 		return FieldSpec.builder(type, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
 				.initializer("new $T()", type)
 				.build();

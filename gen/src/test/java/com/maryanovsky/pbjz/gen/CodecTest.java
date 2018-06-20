@@ -28,6 +28,8 @@ import test.TwoFieldMessages;
 
 /**
  * Runs the test {@link Codec}s, comparing them to the "standard" protobuf encoding/decoding.
+ *
+ * @author Alexander Maryanovsky
  */
 public class CodecTest{
 

@@ -32,6 +32,8 @@ import javax.lang.model.element.Modifier;
 
 /**
  * The main class of the protobuf-javaz protoc plugin.
+ *
+ * @author Alexander Maryanovsky
  */
 public class ProtobufJavaZero{
 

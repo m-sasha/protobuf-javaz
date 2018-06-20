@@ -15,6 +15,8 @@ import java.io.IOException;
  * The base class for all types that encode and decode user-defined types into and from their
  * protobuf wire representation.
  * The class is parameterized with the user-defined type.
+ *
+ * @author Alexander Maryanovsky
  */
 public abstract class Codec<T>{
 

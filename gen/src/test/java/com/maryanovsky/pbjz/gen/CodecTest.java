@@ -22,7 +22,9 @@ import test.StringIntMessage;
 import test.StringIntMessageCodec;
 import test.StringMessage;
 import test.StringMessageCodec;
+import test.StringWithInnerMessageCodec;
 import test.TwoFieldMessages;
+import test.StringWithInnerMessage;
 
 
 
@@ -43,7 +45,7 @@ public class CodecTest{
 	private static <T> void testEncodingEquals(@NotNull T obj, Codec<T> codec, com.google.protobuf.GeneratedMessageV3 protoMsg) throws IOException{
 		ByteArrayOutputStream buf1 = new ByteArrayOutputStream();
 		CodedOutputStream out1 = CodedOutputStream.newInstance(buf1);
-		codec.writeMessage(out1, obj);
+		codec.write(out1, obj);
 		out1.flush();
 
 		ByteArrayOutputStream buf2 = new ByteArrayOutputStream();
@@ -143,6 +145,24 @@ public class CodecTest{
 
 
 	/**
+	 * Tests the encoding of {@link StringWithInnerMessage} with the given list of values.
+	 * Each two consecutive values are converted into objects that are tested.
+	 */
+	private static void testStringWithInnerMessageEncoding(String... values) throws IOException{
+		Codec<StringWithInnerMessage> codec = StringWithInnerMessageCodec.INSTANCE;
+		for (int i = 0; i < values.length - 1; ++i){
+			testEncodingEquals(
+					new StringWithInnerMessage(values[i], new StringMessage(values[i+1])), codec,
+					TwoFieldMessages.StringWithInnerMessage.newBuilder()
+							.setText(values[i])
+							.setStringMsg(OneFieldMessages.StringMessage.newBuilder().setText(values[i+1]).build())
+							.build());
+		}
+	}
+
+
+
+	/**
 	 * Runs the encoding tests.
 	 */
 	@Test
@@ -152,6 +172,7 @@ public class CodecTest{
 		testInt2MessageEncoding(-1, 1, 0, 0, 0xffffffff, -1, Integer.MAX_VALUE, Integer.MIN_VALUE);
 		testString2MessageEncoding("", "", "0", "0", "a", "b", "Hello", "Goodbye", "World", "");
 		testStringIntMessageEncoding("Hello", 0, "", -1, "foobar", Integer.MAX_VALUE);
+		testStringWithInnerMessageEncoding("Hello, World!", "", "\0");
 	}
 
 

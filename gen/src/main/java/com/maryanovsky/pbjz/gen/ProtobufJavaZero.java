@@ -17,16 +17,20 @@ import com.squareup.javapoet.TypeSpec;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.google.protobuf.compiler.PluginProtos.*;
-import static com.google.protobuf.DescriptorProtos.*;
-import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.*;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.lang.model.element.Modifier;
+
+import static com.google.protobuf.DescriptorProtos.DescriptorProto;
+import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
+import static com.google.protobuf.DescriptorProtos.FileDescriptorProto;
+import static com.google.protobuf.compiler.PluginProtos.CodeGeneratorRequest;
+import static com.google.protobuf.compiler.PluginProtos.CodeGeneratorResponse;
 
 
 
@@ -40,30 +44,64 @@ public class ProtobufJavaZero{
 
 
 	/**
+	 * The name of the singleton instance field for each {@link Codec} we generate.
+	 */
+	private static final String CODEC_SINGLETON_INSTANCE_FIELD_NAME = "INSTANCE";
+
+
+
+	/**
 	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that write them.
 	 */
 	private static final Map<Type, String> WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
-		methodNames.put(Type.TYPE_DOUBLE, "writeDouble");
-		methodNames.put(Type.TYPE_FLOAT, "writeFloat");
-		methodNames.put(Type.TYPE_INT32, "writeInt32");
-		methodNames.put(Type.TYPE_INT64, "writeInt64");
-		methodNames.put(Type.TYPE_UINT32, "writeUInt32");
-		methodNames.put(Type.TYPE_UINT64, "writeUInt64");
-		methodNames.put(Type.TYPE_SINT32, "writeSInt32");
-		methodNames.put(Type.TYPE_SINT64, "writeSInt64");
-		methodNames.put(Type.TYPE_FIXED32, "writeFixed32");
-		methodNames.put(Type.TYPE_FIXED64, "writeFixed64");
-		methodNames.put(Type.TYPE_SFIXED32, "writeSFixed32");
-		methodNames.put(Type.TYPE_SFIXED64, "writeSFixed64");
-		methodNames.put(Type.TYPE_BOOL, "writeBool");
-		methodNames.put(Type.TYPE_STRING, "writeString");
-		methodNames.put(Type.TYPE_BYTES, "writeBytes");
+		methodNames.put(Type.TYPE_DOUBLE, "writeDoubleField");
+		methodNames.put(Type.TYPE_FLOAT, "writeFloatField");
+		methodNames.put(Type.TYPE_INT32, "writeInt32Field");
+		methodNames.put(Type.TYPE_INT64, "writeInt64Field");
+		methodNames.put(Type.TYPE_UINT32, "writeUInt32Field");
+		methodNames.put(Type.TYPE_UINT64, "writeUInt64Field");
+		methodNames.put(Type.TYPE_SINT32, "writeSInt32Field");
+		methodNames.put(Type.TYPE_SINT64, "writeSInt64Field");
+		methodNames.put(Type.TYPE_FIXED32, "writeFixed32Field");
+		methodNames.put(Type.TYPE_FIXED64, "writeFixed64Field");
+		methodNames.put(Type.TYPE_SFIXED32, "writeSFixed32Field");
+		methodNames.put(Type.TYPE_SFIXED64, "writeSFixed64Field");
+		methodNames.put(Type.TYPE_BOOL, "writeBoolField");
+		methodNames.put(Type.TYPE_STRING, "writeStringField");
+		methodNames.put(Type.TYPE_BYTES, "writeBytesField");
 
 		WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
 	}
 
+
+
+	/**
+	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that
+	 * compute their serialized sizes.
+	 */
+	private static final Map<Type, String> COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
+	static{
+		Map<Type, String> methodNames = new EnumMap<>(Type.class);
+		methodNames.put(Type.TYPE_DOUBLE, "computeDoubleFieldSize");
+		methodNames.put(Type.TYPE_FLOAT, "computeFloatFieldSize");
+		methodNames.put(Type.TYPE_INT32, "computeInt32FieldSize");
+		methodNames.put(Type.TYPE_INT64, "computeInt64FieldSize");
+		methodNames.put(Type.TYPE_UINT32, "computeUInt32FieldSize");
+		methodNames.put(Type.TYPE_UINT64, "computeUInt64FieldSize");
+		methodNames.put(Type.TYPE_SINT32, "computeSInt32FieldSize");
+		methodNames.put(Type.TYPE_SINT64, "computeSInt64FieldSize");
+		methodNames.put(Type.TYPE_FIXED32, "computeFixed32FieldSize");
+		methodNames.put(Type.TYPE_FIXED64, "computeFixed64FieldSize");
+		methodNames.put(Type.TYPE_SFIXED32, "computeSFixed32FieldSize");
+		methodNames.put(Type.TYPE_SFIXED64, "computeSFixed64FieldSize");
+		methodNames.put(Type.TYPE_BOOL, "computeBoolFieldSize");
+		methodNames.put(Type.TYPE_STRING, "computeStringFieldSize");
+		methodNames.put(Type.TYPE_BYTES, "computeBytesFieldSize");
+
+		COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
+	}
 
 
 	/**
@@ -108,7 +146,7 @@ public class ProtobufJavaZero{
 				ClassName.get(targetTypeJavaPackageName, targetClassName) :
 				targetTypeOuterClassName.nestedClass(targetClassName);
 
-		ClassName codecClassName = ClassName.get("", targetClassName + "Codec");
+		ClassName codecClassName = ClassName.get("", codecSimpleName(targetClassName));
 
 		TypeSpec.Builder builder = TypeSpec.classBuilder(codecClassName)
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -116,7 +154,8 @@ public class ProtobufJavaZero{
 				.addField(generateSingletonInstanceField(codecClassName))
 				.addMethod(generatePrivateConstructor())
 				.addMethod(generateEncodeMethod(targetTypeName, messageDescriptor))
-				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor));
+				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor))
+				.addMethod(generateSerializedSizeComputerMethod(targetTypeName, messageDescriptor));
 
 		if (targetTypeOuterClassName != null)
 			builder.addModifiers(Modifier.STATIC);
@@ -145,14 +184,19 @@ public class ProtobufJavaZero{
 				.addParameter(value)
 				.addException(IOException.class);
 
-		for (FieldDescriptorProto fieldDescriptor : messageDescriptor.getFieldList()){
-			Type fieldType = fieldDescriptor.getType();
-			String getterName = fieldGetterName(fieldDescriptor.getName(), fieldType);
+		for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
+			Type fieldType = field.getType();
+			String getterName = fieldGetterName(field.getName(), fieldType);
 			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
 			if (primitiveWriterMethodName != null){ // A primitive type
 				methodBuilder.addStatement("$L($N, $L, $N.$N())",
-						primitiveWriterMethodName, output, fieldDescriptor.getNumber(), value, getterName);
+						primitiveWriterMethodName, output, field.getNumber(), value, getterName);
+			}
+			else if (fieldType == Type.TYPE_MESSAGE){ // A non-enum user-defined type
+				String codecInstance = getMessageFieldCodecName(field) + "." + CODEC_SINGLETON_INSTANCE_FIELD_NAME;
+				methodBuilder.addStatement("$L.writeMessageField($N, $L, $N.$N())",
+						codecInstance, output, field.getNumber(), value, getterName);
 			}
 			else
 				System.err.println("Field type " + fieldType + " not supported yet");
@@ -177,6 +221,45 @@ public class ProtobufJavaZero{
 				.addException(IOException.class)
 				.addStatement("return null")
 				.build();
+	}
+
+
+
+	/**
+	 * Generates a method that computes the serialized size of values of the user-defined type.
+	 */
+	private static MethodSpec generateSerializedSizeComputerMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
+		ParameterSpec value = notNull(target, "value");
+
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("computeSerializedSize")
+				.addModifiers(Modifier.PROTECTED)
+				.addAnnotation(Override.class)
+				.returns(int.class)
+				.addParameter(value);
+
+		methodBuilder.addStatement("int size = 0");
+
+		for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
+			Type fieldType = field.getType();
+			String getterName = fieldGetterName(field.getName(), fieldType);
+			String primitiveSizeComputerMethodName = COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
+
+			if (primitiveSizeComputerMethodName != null){ // A primitive type
+				methodBuilder.addStatement("size += $L($L, $N.$N())",
+						primitiveSizeComputerMethodName, field.getNumber(), value, getterName);
+			}
+			else if (fieldType == Type.TYPE_MESSAGE){ // A non-enum user-defined type
+				String codecInstance = getMessageFieldCodecName(field) + "." + CODEC_SINGLETON_INSTANCE_FIELD_NAME;
+				methodBuilder.addStatement("size += $L.computeMessageFieldSize($L, $N.$N())",
+						codecInstance, field.getNumber(), value, getterName);
+			}
+			else
+				System.err.println("Field type " + fieldType + " not supported yet");
+		}
+
+		methodBuilder.addStatement("return size");
+
+		return methodBuilder.build();
 	}
 
 
@@ -216,10 +299,40 @@ public class ProtobufJavaZero{
 
 
 	/**
+	 * Returns the name of the {@link Codec} class to use for the given message-type field.
+	 */
+	private static String getMessageFieldCodecName(FieldDescriptorProto field){
+		String typeName = field.getTypeName();
+		if (typeName.startsWith(".")){
+			ClassName fieldClassName = ClassName.bestGuess(typeName.substring(1));
+			return fieldClassName.packageName() + "." +
+					fieldClassName.simpleNames()
+							.stream()
+							.map(ProtobufJavaZero::codecSimpleName)
+							.collect(Collectors.joining("."));
+		}
+
+		// We can just return the type name, without the types its nested in, because the Java
+		// scoping rules are (should be?) the same as in protobuf.
+		return codecSimpleName(typeName);
+	}
+
+
+
+	/**
+	 * Returns the simple name of the codec class for the given user type.
+	 */
+	private static String codecSimpleName(String className){
+		return className + "Codec";
+	}
+
+
+
+	/**
 	 * Generates a singleton codec instance field.
 	 */
 	private static FieldSpec generateSingletonInstanceField(@NotNull ClassName type){
-		return FieldSpec.builder(type, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+		return FieldSpec.builder(type, CODEC_SINGLETON_INSTANCE_FIELD_NAME, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
 				.initializer("new $T()", type)
 				.build();
 	}

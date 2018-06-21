@@ -17,12 +17,13 @@ public class AllTypesMessage{
 	private boolean boolField;
 	private String stringField;
 	private byte[] bytesField;
+	private StringMessage stringMsgField;
 
 	public AllTypesMessage(){
 
 	}
 
-	public AllTypesMessage(double doubleField, float floatField, int int32Field, long int64Field, int uint32Field, long uint64Field, int sint32Field, long sint64Field, int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field, boolean boolField, String stringField, byte[] bytesField){
+	public AllTypesMessage(double doubleField, float floatField, int int32Field, long int64Field, int uint32Field, long uint64Field, int sint32Field, long sint64Field, int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field, boolean boolField, String stringField, byte[] bytesField, StringMessage stringMsgField){
 		this.doubleField = doubleField;
 		this.floatField = floatField;
 		this.int32Field = int32Field;
@@ -38,6 +39,7 @@ public class AllTypesMessage{
 		this.boolField = boolField;
 		this.stringField = stringField;
 		this.bytesField = bytesField;
+		this.stringMsgField = stringMsgField;
 	}
 
 	public double getDoubleField(){
@@ -100,17 +102,35 @@ public class AllTypesMessage{
 		return bytesField;
 	}
 
+	public StringMessage getStringMsgField(){
+		return stringMsgField;
+	}
 
 	public static class InnerMessage{
 
-		private final int innerField;
+		private final int field;
 
-		public InnerMessage(int innerField){
-			this.innerField = innerField;
+		public InnerMessage(int field){
+			this.field = field;
 		}
 
-		public int getInnerField(){
-			return innerField;
+		public int getField(){
+			return field;
+		}
+
+	}
+
+
+	public static class Inner2Message{
+
+		private final InnerMessage field;
+
+		public Inner2Message(InnerMessage field){
+			this.field = field;
+		}
+
+		public InnerMessage getField(){
+			return field;
 		}
 
 	}

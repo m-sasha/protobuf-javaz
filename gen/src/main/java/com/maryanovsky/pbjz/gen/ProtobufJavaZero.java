@@ -53,6 +53,7 @@ public class ProtobufJavaZero{
 	/**
 	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that write them.
 	 */
+	@NotNull
 	private static final Map<Type, String> WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
@@ -81,6 +82,7 @@ public class ProtobufJavaZero{
 	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that
 	 * compute their serialized sizes.
 	 */
+	@NotNull
 	private static final Map<Type, String> COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
@@ -137,10 +139,11 @@ public class ProtobufJavaZero{
 	/**
 	 * Generates the {@link Codec} for a single message type, as described by the given descriptor.
 	 */
-	private static TypeSpec generateCodec(String targetTypeJavaPackageName,
+	@NotNull
+	private static TypeSpec generateCodec(@NotNull String targetTypeJavaPackageName,
 										  @Nullable ClassName targetTypeOuterClassName,
-										  DescriptorProto messageDescriptor){
-		String targetClassName = messageDescriptor.getName();
+										  @NotNull DescriptorProto message){
+		String targetClassName = message.getName();
 
 		ClassName targetTypeName = (targetTypeOuterClassName == null) ?
 				ClassName.get(targetTypeJavaPackageName, targetClassName) :
@@ -153,14 +156,14 @@ public class ProtobufJavaZero{
 				.superclass(ParameterizedTypeName.get(ClassName.get(Codec.class), targetTypeName))
 				.addField(generateSingletonInstanceField(codecClassName))
 				.addMethod(generatePrivateConstructor())
-				.addMethod(generateEncodeMethod(targetTypeName, messageDescriptor))
-				.addMethod(generateDecodeMethod(targetTypeName, messageDescriptor))
-				.addMethod(generateSerializedSizeComputerMethod(targetTypeName, messageDescriptor));
+				.addMethod(generateEncodeMethod(targetTypeName, message))
+				.addMethod(generateDecodeMethod(targetTypeName, message))
+				.addMethod(generateSerializedSizeComputerMethod(targetTypeName, message));
 
-		if (targetTypeOuterClassName != null)
+		if (targetTypeOuterClassName != null) // Nested types must be static
 			builder.addModifiers(Modifier.STATIC);
 
-		for (DescriptorProto descriptor : messageDescriptor.getNestedTypeList())
+		for (DescriptorProto descriptor : message.getNestedTypeList())
 			builder.addType(generateCodec(targetTypeJavaPackageName, targetTypeName, descriptor));
 
 		return builder.build();
@@ -172,7 +175,8 @@ public class ProtobufJavaZero{
 	 * Generates a method that encodes objects of a user-defined type into messages described by the
 	 * given descriptor.
 	 */
-	private static MethodSpec generateEncodeMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
+	@NotNull
+	private static MethodSpec generateEncodeMethod(@NotNull TypeName target, @NotNull DescriptorProto message){
 		ParameterSpec output = notNull(CodedOutputStream.class, "output");
 		ParameterSpec value = notNull(target, "value");
 
@@ -184,7 +188,7 @@ public class ProtobufJavaZero{
 				.addParameter(value)
 				.addException(IOException.class);
 
-		for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
+		for (FieldDescriptorProto field : message.getFieldList()){
 			Type fieldType = field.getType();
 			String getterName = fieldGetterName(field.getName(), fieldType);
 			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
@@ -211,7 +215,8 @@ public class ProtobufJavaZero{
 	 * Generates a method that decodes messages described by the given descriptor into objects of
 	 * the user-defined type.
 	 */
-	private static MethodSpec generateDecodeMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
+	@NotNull
+	private static MethodSpec generateDecodeMethod(@NotNull TypeName target, @NotNull DescriptorProto message){
 		return MethodSpec.methodBuilder("decode")
 				.addModifiers(Modifier.PUBLIC)
 				.addAnnotation(Override.class)
@@ -228,7 +233,8 @@ public class ProtobufJavaZero{
 	/**
 	 * Generates a method that computes the serialized size of values of the user-defined type.
 	 */
-	private static MethodSpec generateSerializedSizeComputerMethod(@NotNull TypeName target, DescriptorProto messageDescriptor){
+	@NotNull
+	private static MethodSpec generateSerializedSizeComputerMethod(@NotNull TypeName target, @NotNull DescriptorProto message){
 		ParameterSpec value = notNull(target, "value");
 
 		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("computeSerializedSize")
@@ -239,7 +245,7 @@ public class ProtobufJavaZero{
 
 		methodBuilder.addStatement("int size = 0");
 
-		for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
+		for (FieldDescriptorProto field : message.getFieldList()){
 			Type fieldType = field.getType();
 			String getterName = fieldGetterName(field.getName(), fieldType);
 			String primitiveSizeComputerMethodName = COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
@@ -268,7 +274,8 @@ public class ProtobufJavaZero{
 	 * Creates a parameter spec with a {@code NotNull} annotation from the given parameter type and
 	 * name.
 	 */
-	private static ParameterSpec notNull(TypeName typeName, String paramName){
+	@NotNull
+	private static ParameterSpec notNull(@NotNull TypeName typeName, @NotNull String paramName){
 		return ParameterSpec.builder(typeName, paramName).addAnnotation(NotNull.class).build();
 	}
 
@@ -277,7 +284,8 @@ public class ProtobufJavaZero{
 	 * Creates a parameter spec with a {@code NotNull} annotation from the given parameter type and
 	 * name.
 	 */
-	private static ParameterSpec notNull(Class<?> clazz, String paramName){
+	@NotNull
+	private static ParameterSpec notNull(@NotNull Class<?> clazz, @NotNull String paramName){
 		return notNull(ClassName.get(clazz), paramName);
 	}
 
@@ -286,7 +294,8 @@ public class ProtobufJavaZero{
 	 * Returns the name of the getter method we expect to be present in the user-defined type for a
 	 * message field of the given name, as defined in the proto file.
 	 */
-	private static String fieldGetterName(String name, Type type){
+	@NotNull
+	private static String fieldGetterName(@NotNull String name, @NotNull Type type){
 		// If the field is boolean and already starts with "is_", don't duplicate it.
 		// For example: "is_red", should become "isRed", not "isIsRed".
 		if ((type == Type.TYPE_BOOL) && name.startsWith("is_"))
@@ -301,7 +310,8 @@ public class ProtobufJavaZero{
 	/**
 	 * Returns the name of the {@link Codec} class to use for the given message-type field.
 	 */
-	private static String getMessageFieldCodecName(FieldDescriptorProto field){
+	@NotNull
+	private static String getMessageFieldCodecName(@NotNull FieldDescriptorProto field){
 		String typeName = field.getTypeName();
 		if (typeName.startsWith(".")){
 			ClassName fieldClassName = ClassName.bestGuess(typeName.substring(1));
@@ -322,7 +332,8 @@ public class ProtobufJavaZero{
 	/**
 	 * Returns the simple name of the codec class for the given user type.
 	 */
-	private static String codecSimpleName(String className){
+	@NotNull
+	private static String codecSimpleName(@NotNull String className){
 		return className + "Codec";
 	}
 
@@ -331,6 +342,7 @@ public class ProtobufJavaZero{
 	/**
 	 * Generates a singleton codec instance field.
 	 */
+	@NotNull
 	private static FieldSpec generateSingletonInstanceField(@NotNull ClassName type){
 		return FieldSpec.builder(type, CODEC_SINGLETON_INSTANCE_FIELD_NAME, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
 				.initializer("new $T()", type)
@@ -342,6 +354,7 @@ public class ProtobufJavaZero{
 	/**
 	 * Generates a private constructor for the codec.
 	 */
+	@NotNull
 	private static MethodSpec generatePrivateConstructor(){
 		return MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build();
 	}

@@ -11,15 +11,20 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import test.Color;
 import test.Int2Message;
 import test.Int2MessageCodec;
 import test.IntMessage;
 import test.IntMessageCodec;
+import test.ColorMessage;
+import test.ColorMessageCodec;
 import test.OneFieldMessages;
 import test.String2Message;
 import test.String2MessageCodec;
 import test.StringIntMessage;
 import test.StringIntMessageCodec;
+import test.StringColorMessage;
+import test.StringColorMessageCodec;
 import test.StringMessage;
 import test.StringMessageCodec;
 import test.StringWithInnerMessageCodec;
@@ -87,6 +92,20 @@ public class CodecTest{
 
 
 	/**
+	 * Tests the encoding of {@link ColorMessage} with the given list of values.
+	 */
+	private static void testColorMessageEncoding(Color... values) throws IOException{
+		Codec<ColorMessage> codec = ColorMessageCodec.INSTANCE;
+		for (Color value : values){
+			testEncodingEquals(
+					new ColorMessage(value), codec,
+					OneFieldMessages.ColorMessage.newBuilder().setColorValue(value.ordinal()).build());
+		}
+	}
+
+
+
+	/**
 	 * Tests the encoding of {@link Int2Message} with the given list of values. Each two consecutive
 	 * values are converted into objects that are tested.
 	 */
@@ -145,6 +164,28 @@ public class CodecTest{
 
 
 	/**
+	 * Tests the encoding of {@link StringColorMessage} with the given list of values. The values
+	 * at even indices are expected to be {@code String}s, and the values at odd indices are
+	 * expected to be {@code Color}s. Each two consecutive values are converted into objects that
+	 * are tested.
+	 */
+	private static void testStringColorMessageEncoding(Object... values) throws IOException{
+		Codec<StringColorMessage> codec = StringColorMessageCodec.INSTANCE;
+		for (int i = 0; i < values.length - 1; ++i){
+			String text = (String)values[i + i%2];
+			Color color = (Color)values[i + (i+1)%2];
+			testEncodingEquals(
+					new StringColorMessage(text, color), codec,
+					TwoFieldMessages.StringColorMessage.newBuilder()
+							.setText(text)
+							.setColorValue(color.ordinal())
+							.build());
+		}
+	}
+
+
+
+	/**
 	 * Tests the encoding of {@link StringWithInnerMessage} with the given list of values.
 	 * Each two consecutive values are converted into objects that are tested.
 	 */
@@ -169,9 +210,11 @@ public class CodecTest{
 	public void testEncoding() throws IOException{
 		testIntMessageEncoding(5, 42, 0xffffffff, -1, Integer.MAX_VALUE, Integer.MIN_VALUE);
 		testStringMessageEncoding("Hello, World!", "", "\0");
+		testColorMessageEncoding(Color.DEFAULT, Color.BLUE, Color.RED);
 		testInt2MessageEncoding(-1, 1, 0, 0, 0xffffffff, -1, Integer.MAX_VALUE, Integer.MIN_VALUE);
 		testString2MessageEncoding("", "", "0", "0", "a", "b", "Hello", "Goodbye", "World", "");
 		testStringIntMessageEncoding("Hello", 0, "", -1, "foobar", Integer.MAX_VALUE);
+		testStringColorMessageEncoding("Peace", Color.RED, "Love", Color.DEFAULT, "Happiness", Color.BLUE);
 		testStringWithInnerMessageEncoding("Hello, World!", "", "\0");
 	}
 

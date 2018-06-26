@@ -18,12 +18,13 @@ public class AllTypesMessage{
 	private String stringField;
 	private byte[] bytesField;
 	private StringMessage stringMsgField;
+	private Color colorField;
 
 	public AllTypesMessage(){
 
 	}
 
-	public AllTypesMessage(double doubleField, float floatField, int int32Field, long int64Field, int uint32Field, long uint64Field, int sint32Field, long sint64Field, int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field, boolean boolField, String stringField, byte[] bytesField, StringMessage stringMsgField){
+	public AllTypesMessage(double doubleField, float floatField, int int32Field, long int64Field, int uint32Field, long uint64Field, int sint32Field, long sint64Field, int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field, boolean boolField, String stringField, byte[] bytesField, StringMessage stringMsgField, Color colorField){
 		this.doubleField = doubleField;
 		this.floatField = floatField;
 		this.int32Field = int32Field;
@@ -40,6 +41,7 @@ public class AllTypesMessage{
 		this.stringField = stringField;
 		this.bytesField = bytesField;
 		this.stringMsgField = stringMsgField;
+		this.colorField = colorField;
 	}
 
 	public double getDoubleField(){
@@ -105,6 +107,11 @@ public class AllTypesMessage{
 	public StringMessage getStringMsgField(){
 		return stringMsgField;
 	}
+
+	public Color getColorField(){
+		return colorField;
+	}
+
 
 	public static class InnerMessage{
 

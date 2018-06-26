@@ -27,6 +27,13 @@ message StringIntMessage{
 
 }
 
+message StringColorMessage{
+
+    string text = 1;
+    Color color = 2;
+
+}
+
 
 message StringWithInnerMessage{
     string text = 1;

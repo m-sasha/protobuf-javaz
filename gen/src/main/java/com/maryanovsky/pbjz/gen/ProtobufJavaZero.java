@@ -5,6 +5,7 @@ import com.google.common.base.CaseFormat;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.maryanovsky.pbjz.runtime.Codec;
+import com.maryanovsky.pbjz.runtime.EnumCodec;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
@@ -27,6 +28,7 @@ import javax.lang.model.element.Modifier;
 
 import static com.google.protobuf.DescriptorProtos.DescriptorProto;
 import static com.google.protobuf.DescriptorProtos.EnumDescriptorProto;
+import static com.google.protobuf.DescriptorProtos.EnumValueDescriptorProto;
 import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import static com.google.protobuf.DescriptorProtos.FileDescriptorProto;
@@ -120,15 +122,13 @@ public class ProtobufJavaZero{
 
 			// Generate codecs for message types
 			for (DescriptorProto descriptor : fileDescriptor.getMessageTypeList()){
-				TypeSpec codec = genCodec(javaPackage, null,
-						UserDefinedTypeDescriptor.forMessageType(descriptor));
+				TypeSpec codec = genMessageCodec(javaPackage, null,	descriptor);
 				response.addFile(genCodecFile(javaPackage, codec));
 			}
 
 			// Generate codecs for enum types
 			for (EnumDescriptorProto descriptor : fileDescriptor.getEnumTypeList()){
-				TypeSpec codec = genCodec(javaPackage, null,
-						UserDefinedTypeDescriptor.forEnumType(descriptor));
+				TypeSpec codec = genEnumCodec(javaPackage, null, descriptor);
 				response.addFile(genCodecFile(javaPackage, codec));
 			}
 		}
@@ -154,13 +154,13 @@ public class ProtobufJavaZero{
 
 
 	/**
-	 * Generates the {@link Codec} for a single user-defined type, as described by the given
-	 * descriptor.
+	 * Generates the {@link Codec} class for a single user-defined type, as described by the given
+	 * message descriptor.
 	 */
 	@NotNull
-	private static TypeSpec genCodec(@NotNull String userTypeJavaPackage,
-									 @Nullable ClassName userTypeOuterClassName,
-									 @NotNull UserDefinedTypeDescriptor descriptor){
+	private static TypeSpec genMessageCodec(@NotNull String userTypeJavaPackage,
+											@Nullable ClassName userTypeOuterClassName,
+											@NotNull DescriptorProto descriptor){
 		String protoTypeName = descriptor.getName();
 
 		ClassName userTypeName = (userTypeOuterClassName == null) ?
@@ -183,22 +183,14 @@ public class ProtobufJavaZero{
 				.addMethod(genSizeComputerMethod(userTypeName, descriptor));
 
 
-		if (descriptor.isMessageType()){
-			DescriptorProto messageDescriptor = descriptor.messageDescriptor;
+		// Generate nested codecs for message types
+		for (DescriptorProto nestedMessageDescriptor : descriptor.getNestedTypeList()){
+			builder.addType(genMessageCodec(userTypeJavaPackage, userTypeName, nestedMessageDescriptor));
+		}
 
-			// Generate nested codecs for message types
-			for (DescriptorProto nestedMessageDescriptor : messageDescriptor.getNestedTypeList()){
-				builder.addType(
-						genCodec(userTypeJavaPackage, userTypeName,
-								UserDefinedTypeDescriptor.forMessageType(nestedMessageDescriptor)));
-			}
-
-			// Generate nested codecs for enum types
-			for (EnumDescriptorProto nestedEnumDescriptor : messageDescriptor.getEnumTypeList()){
-				builder.addType(
-						genCodec(userTypeJavaPackage, userTypeName,
-								UserDefinedTypeDescriptor.forEnumType(nestedEnumDescriptor)));
-			}
+		// Generate nested codecs for enum types
+		for (EnumDescriptorProto nestedEnumDescriptor : descriptor.getEnumTypeList()){
+			builder.addType(genEnumCodec(userTypeJavaPackage, userTypeName,	nestedEnumDescriptor));
 		}
 
 		return builder.build();
@@ -211,7 +203,7 @@ public class ProtobufJavaZero{
 	 * given descriptor - an implementation of {@link Codec#encode(CodedOutputStream, Object)}.
 	 */
 	@NotNull
-	private static MethodSpec genEncodeMethod(@NotNull TypeName userTypeName, @NotNull UserDefinedTypeDescriptor descriptor){
+	private static MethodSpec genEncodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
 		ParameterSpec output = notNull(CodedOutputStream.class, "output");
 		ParameterSpec value = notNull(userTypeName, "value");
 
@@ -224,29 +216,23 @@ public class ProtobufJavaZero{
 				.addException(IOException.class);
 
 
-		if (descriptor.isMessageType()){
-			DescriptorProto messageDescriptor = descriptor.messageDescriptor;
+		for (FieldDescriptorProto field : descriptor.getFieldList()){
+			Type fieldType = field.getType();
+			String getterName = fieldGetterName(field.getName(), fieldType);
+			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
-				Type fieldType = field.getType();
-				String getterName = fieldGetterName(field.getName(), fieldType);
-				String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
-
-				if (primitiveWriterMethodName != null){ // A primitive type
-					methodBuilder.addStatement("$L($N, $L, $N.$N())",
-							primitiveWriterMethodName, output, field.getNumber(), value, getterName);
-				}
-				else if (fieldType == Type.TYPE_MESSAGE){ // A non-enum user-defined type
-					String codecInstance = messageFieldCodecName(field) + "." + CODEC_SINGLETON_INSTANCE_FIELD_NAME;
-					methodBuilder.addStatement("$L.writeMessageField($N, $L, $N.$N())",
-							codecInstance, output, field.getNumber(), value, getterName);
-				}
-				else
-					System.err.println("Field type " + fieldType + " not supported yet");
+			if (primitiveWriterMethodName != null){ // A primitive type
+				// e.g. writeFloatField(output, 2, value.getSecondField())
+				methodBuilder.addStatement("$L($N, $L, $N.$N())",
+						primitiveWriterMethodName, output, field.getNumber(), value, getterName);
 			}
-		}
-		else{
-			// TODO: Implement encoding for enum types
+			else if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
+				// e.g. TypeCodec.INSTANCE.writeField(output, 3, value.getThirdField())
+				methodBuilder.addStatement("$L.writeField($N, $L, $N.$N())",
+						codecInstanceExpr(field), output, field.getNumber(), value, getterName);
+			}
+			else
+				System.err.println("Field type " + fieldType + " not supported yet");
 		}
 
 		return methodBuilder.build();
@@ -259,7 +245,7 @@ public class ProtobufJavaZero{
 	 * the user-defined type - an implementation of {@link Codec#decode(CodedInputStream)}.
 	 */
 	@NotNull
-	private static MethodSpec genDecodeMethod(@NotNull TypeName userTypeName, @NotNull UserDefinedTypeDescriptor descriptor){
+	private static MethodSpec genDecodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
 		return MethodSpec.methodBuilder("decode")
 				.addModifiers(Modifier.PUBLIC)
 				.addAnnotation(Override.class)
@@ -278,8 +264,7 @@ public class ProtobufJavaZero{
 	 * implementation of {@link Codec#computeSerializedSize(Object)}.
 	 */
 	@NotNull
-	private static MethodSpec genSizeComputerMethod(@NotNull TypeName userTypeName,
-													@NotNull UserDefinedTypeDescriptor descriptor){
+	private static MethodSpec genSizeComputerMethod(@NotNull TypeName userTypeName,	@NotNull DescriptorProto descriptor){
 		ParameterSpec value = notNull(userTypeName, "value");
 
 		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("computeSerializedSize")
@@ -288,34 +273,106 @@ public class ProtobufJavaZero{
 				.returns(int.class)
 				.addParameter(value);
 
-		if (descriptor.isMessageType()){
-			DescriptorProto messageDescriptor = descriptor.messageDescriptor;
+		methodBuilder.addStatement("int size = 0");
 
-			methodBuilder.addStatement("int size = 0");
+		for (FieldDescriptorProto field : descriptor.getFieldList()){
+			Type fieldType = field.getType();
+			String getterName = fieldGetterName(field.getName(), fieldType);
+			String primitiveSizeComputerMethodName = COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			for (FieldDescriptorProto field : messageDescriptor.getFieldList()){
-				Type fieldType = field.getType();
-				String getterName = fieldGetterName(field.getName(), fieldType);
-				String primitiveSizeComputerMethodName = COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
-
-				if (primitiveSizeComputerMethodName != null){ // A primitive type
-					methodBuilder.addStatement("size += $L($L, $N.$N())",
-							primitiveSizeComputerMethodName, field.getNumber(), value, getterName);
-				}
-				else if (fieldType == Type.TYPE_MESSAGE){ // A non-enum user-defined type
-					String codecInstance = messageFieldCodecName(field) + "." + CODEC_SINGLETON_INSTANCE_FIELD_NAME;
-					methodBuilder.addStatement("size += $L.computeMessageFieldSize($L, $N.$N())",
-							codecInstance, field.getNumber(), value, getterName);
-				}
-				else
-					System.err.println("Field type " + fieldType + " not supported yet");
+			if (primitiveSizeComputerMethodName != null){ // A primitive type
+				// e.g. size += computeFloatFieldSize(2, value.getSecondField())
+				methodBuilder.addStatement("size += $L($L, $N.$N())",
+						primitiveSizeComputerMethodName, field.getNumber(), value, getterName);
 			}
+			else if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
+				// e.g. size += TypeCodec.INSTANCE.computeSerializedSize(3, value.getThirdField())
+				methodBuilder.addStatement("size += $L.computeSerializedSize($L, $N.$N())",
+						codecInstanceExpr(field), field.getNumber(), value, getterName);
+			}
+			else
+				System.err.println("Field type " + fieldType + " not supported yet");
+		}
 
-			methodBuilder.addStatement("return size");
-		}
-		else{
-			// TODO: Implement size computation for enum types
-		}
+		methodBuilder.addStatement("return size");
+
+		return methodBuilder.build();
+	}
+
+
+
+	/**
+	 * Generates the {@link Codec} class for a single user-defined type, as described by the given
+	 * message descriptor.
+	 */
+	@NotNull
+	private static TypeSpec genEnumCodec(@NotNull String userTypeJavaPackage,
+										 @Nullable ClassName userTypeOuterClassName,
+										 @NotNull EnumDescriptorProto descriptor){
+		String protoTypeName = descriptor.getName();
+
+		ClassName userTypeName = (userTypeOuterClassName == null) ?
+				ClassName.get(userTypeJavaPackage, protoTypeName) :
+				userTypeOuterClassName.nestedClass(protoTypeName);
+
+		ClassName codecClassName = ClassName.get("", codecSimpleName(protoTypeName)); // package is declared in the file
+
+		TypeSpec.Builder builder = TypeSpec.classBuilder(codecClassName)
+				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+				.superclass(ParameterizedTypeName.get(ClassName.get(EnumCodec.class), userTypeName))
+				.addField(genSingletonInstanceField(codecClassName))
+				.addMethod(genPrivateConstructor());
+
+		builder.addMethod(genToEncodedEnumValueMethod(userTypeName, descriptor))
+				.addMethod(genFromEncodedEnumValueMethod(userTypeName, descriptor))
+				.build();
+
+		return builder.build();
+	}
+
+
+
+	/**
+	 * Generates the method that returns the wire representation of a given user-defined enum-type
+	 * value - an implementation of {@link EnumCodec#toEncodedValue(Enum)}.
+	 */
+	@NotNull
+	private static MethodSpec genToEncodedEnumValueMethod(@NotNull TypeName userTypeName, @NotNull EnumDescriptorProto descriptor){
+		ParameterSpec value = notNull(userTypeName, "value");
+
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("toEncodedValue")
+				.addModifiers(Modifier.PROTECTED)
+				.addAnnotation(Override.class)
+				.returns(int.class)
+				.addParameter(value);
+
+		methodBuilder.beginControlFlow("switch($N)", value);
+		for (EnumValueDescriptorProto enumValue : descriptor.getValueList())
+			methodBuilder.addStatement("case $N: return $L", enumValue.getName(), enumValue.getNumber());
+		methodBuilder.addStatement("default: throw new IllegalArgumentException($N + \" has no corresponding proto value\")", value);
+		methodBuilder.endControlFlow();
+
+		return methodBuilder.build();
+	}
+
+
+
+	/**
+	 * Generates the method that returns the user-defined enum-type value represented by the given
+	 * integer value on the wire - an implementation of {@link EnumCodec#fromEncodedValue(int)}.
+	 */
+	@NotNull
+	private static MethodSpec genFromEncodedEnumValueMethod(@NotNull TypeName userTypeName, @NotNull EnumDescriptorProto descriptor){
+		ParameterSpec encoded = ParameterSpec.builder(int.class, "encoded").build();
+
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("fromEncodedValue")
+				.addModifiers(Modifier.PROTECTED)
+				.addAnnotation(Override.class)
+				.addAnnotation(Nullable.class)
+				.returns(userTypeName)
+				.addParameter(encoded);
+
+		methodBuilder.addCode("return null;\n");
 
 		return methodBuilder.build();
 	}
@@ -360,23 +417,28 @@ public class ProtobufJavaZero{
 
 
 	/**
-	 * Returns the name of the {@link Codec} class to use for the given message-type field.
+	 * Returns the expression of the codec instance to use for the given field.
 	 */
 	@NotNull
-	private static String messageFieldCodecName(@NotNull FieldDescriptorProto field){
+	private static String codecInstanceExpr(@NotNull FieldDescriptorProto field){
 		String typeName = field.getTypeName();
+		String codecTypeName;
 		if (typeName.startsWith(".")){
+			// Convert each inner type name to the name of its codec
 			ClassName fieldClassName = ClassName.bestGuess(typeName.substring(1));
-			return fieldClassName.packageName() + "." +
+			codecTypeName = fieldClassName.packageName() + "." +
 					fieldClassName.simpleNames()
 							.stream()
 							.map(ProtobufJavaZero::codecSimpleName)
 							.collect(Collectors.joining("."));
 		}
+		else{
+			// We can just return the type name, without the types its nested in, because the Java
+			// scoping rules are (should be?) the same as in protobuf.
+			codecTypeName = codecSimpleName(typeName);
+		}
 
-		// We can just return the type name, without the types its nested in, because the Java
-		// scoping rules are (should be?) the same as in protobuf.
-		return codecSimpleName(typeName);
+		return codecTypeName + "." + CODEC_SINGLETON_INSTANCE_FIELD_NAME;
 	}
 
 
@@ -409,77 +471,6 @@ public class ProtobufJavaZero{
 	@NotNull
 	private static MethodSpec genPrivateConstructor(){
 		return MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build();
-	}
-
-
-
-	/**
-	 * Represents a user-defined protobuf type, whether it's a message or an enum type.
-	 */
-	private static class UserDefinedTypeDescriptor{
-
-
-
-		/**
-		 * The message type descriptor, or {@code null} if an enum type is represented.
-		 */
-		public final DescriptorProto messageDescriptor;
-
-
-
-		/**
-		 * The enum type descriptor, or {@code null} if a message type is represented.
-		 */
-		public final EnumDescriptorProto enumDescriptor;
-
-
-
-		/**
-		 * Creates a new {@link UserDefinedTypeDescriptor} with the given descriptors, of which
-		 * exactly one must be non-{@code null}.
-		 */
-		private UserDefinedTypeDescriptor(DescriptorProto messageDescriptor, EnumDescriptorProto enumDescriptor){
-			this.messageDescriptor = messageDescriptor;
-			this.enumDescriptor = enumDescriptor;
-		}
-
-
-
-		/**
-		 * Creates a {@link UserDefinedTypeDescriptor} for a message type.
-		 */
-		public static UserDefinedTypeDescriptor forMessageType(@NotNull DescriptorProto messageDescriptor){
-			return new UserDefinedTypeDescriptor(messageDescriptor, null);
-		}
-
-
-
-		/**
-		 * Creates a {@link UserDefinedTypeDescriptor} for an enum type.
-		 */
-		public static UserDefinedTypeDescriptor forEnumType(@NotNull EnumDescriptorProto enumDescriptor){
-			return new UserDefinedTypeDescriptor(null, enumDescriptor);
-		}
-
-
-
-		/**
-		 * Returns whether a message type is represented.
-		 */
-		public boolean isMessageType(){
-			return messageDescriptor != null;
-		}
-
-
-
-		/**
-		 * Returns the name of the type.
-		 */
-		public String getName(){
-			return isMessageType() ? messageDescriptor.getName() : enumDescriptor.getName();
-		}
-
-
 	}
 
 

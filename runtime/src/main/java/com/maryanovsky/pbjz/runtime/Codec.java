@@ -16,6 +16,7 @@ import java.io.IOException;
 /**
  * The base class for all types that encode and decode a user-defined type into and from its
  * protobuf wire representation.
+ *
  * The class is parameterized with the aforementioned user-defined type.
  *
  * @author Alexander Maryanovsky
@@ -373,10 +374,10 @@ public abstract class Codec<T>{
 	/**
 	 * Writes the given field of the user-defined type, at the given field number.
 	 */
-	public final void writeMessageField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable T value) throws IOException{
+	public final void writeField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable T value) throws IOException{
 		if (value != null){
 			output.writeTag(fieldNumber, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-			writeMessageFieldNoTag(output, value);
+			writeFieldNoTag(output, value);
 		}
 	}
 
@@ -385,7 +386,7 @@ public abstract class Codec<T>{
 	 * The the given value of the user-defined type, sans the tag.
 	 * This is the equivalent of {@link CodedOutputStream#writeMessageNoTag(MessageLite)}.
 	 */
-	private void writeMessageFieldNoTag(@NotNull CodedOutputStream output, @NotNull T value) throws IOException{
+	private void writeFieldNoTag(@NotNull CodedOutputStream output, @NotNull T value) throws IOException{
 		output.writeUInt32NoTag(computeSerializedSize(value));
 		encode(output, value);
 	}
@@ -395,12 +396,11 @@ public abstract class Codec<T>{
 	/**
 	 * Computes the serialized size of a field of the user-defined type, at the given field number.
 	 */
-	public final int computeMessageFieldSize(int fieldNumber, @Nullable T value){
+	public final int computeSerializedSize(int fieldNumber, @Nullable T value){
 		if (value == null)
 			return 0;
 
-		return CodedOutputStream.computeTagSize(fieldNumber) +
-				computeMessageFieldSizeNoTag(value);
+		return CodedOutputStream.computeTagSize(fieldNumber) + computeSerializedSizeNoTag(value);
 	}
 
 
@@ -409,7 +409,7 @@ public abstract class Codec<T>{
 	 * Computes the serialized size of a field of the user-defined type, sans the tag.
 	 * This is the equivalent of {@link CodedOutputStream#computeMessageSizeNoTag(MessageLite)}.
 	 */
-	private int computeMessageFieldSizeNoTag(@NotNull T value){
+	private int computeSerializedSizeNoTag(@NotNull T value){
 		int fieldSize = computeSerializedSize(value);
 		return CodedOutputStream.computeUInt32SizeNoTag(fieldSize) + fieldSize;
 	}

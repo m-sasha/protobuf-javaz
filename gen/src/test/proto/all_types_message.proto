@@ -4,6 +4,7 @@ package test;
 
 import "one_field_messages.proto";
 
+
 message AllTypesMessage{
 
     message InnerMessage{
@@ -13,7 +14,6 @@ message AllTypesMessage{
     message Inner2Message{
         InnerMessage field = 1;
     }
-
 
     double double_field = 1;
 	float float_field = 2;
@@ -31,6 +31,7 @@ message AllTypesMessage{
 	string string_field = 14;
 	bytes bytes_field = 15;
     StringMessage string_msg_field = 16;
+    Color color_field = 17;
 //	InnerMessage val16 = 17;
 //	EnumMessage val17 = 17;
 

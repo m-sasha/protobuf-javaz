@@ -7,6 +7,7 @@ import com.google.protobuf.CodedOutputStream;
 import com.maryanovsky.pbjz.runtime.Codec;
 import com.maryanovsky.pbjz.runtime.EnumCodec;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -204,15 +205,15 @@ public class ProtobufJavaZero{
 	 */
 	@NotNull
 	private static MethodSpec genEncodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
-		ParameterSpec output = notNull(CodedOutputStream.class, "output");
-		ParameterSpec value = notNull(userTypeName, "value");
+		ParameterSpec outputParam = notNull(CodedOutputStream.class, "output");
+		ParameterSpec valueParam = notNull(userTypeName, "value");
 
 		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("encode")
 				.addModifiers(Modifier.PROTECTED)
 				.addAnnotation(Override.class)
 				.returns(void.class)
-				.addParameter(output)
-				.addParameter(value)
+				.addParameter(outputParam)
+				.addParameter(valueParam)
 				.addException(IOException.class);
 
 
@@ -224,12 +225,12 @@ public class ProtobufJavaZero{
 			if (primitiveWriterMethodName != null){ // A primitive type
 				// e.g. writeFloatField(output, 2, value.getSecondField())
 				methodBuilder.addStatement("$L($N, $L, $N.$N())",
-						primitiveWriterMethodName, output, field.getNumber(), value, getterName);
+						primitiveWriterMethodName, outputParam, field.getNumber(), valueParam, getterName);
 			}
 			else if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
 				// e.g. TypeCodec.INSTANCE.writeField(output, 3, value.getThirdField())
 				methodBuilder.addStatement("$L.writeField($N, $L, $N.$N())",
-						codecInstanceExpr(field), output, field.getNumber(), value, getterName);
+						codecInstanceExpr(field), outputParam, field.getNumber(), valueParam, getterName);
 			}
 			else
 				System.err.println("Field type " + fieldType + " not supported yet");
@@ -246,15 +247,30 @@ public class ProtobufJavaZero{
 	 */
 	@NotNull
 	private static MethodSpec genDecodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
-		return MethodSpec.methodBuilder("decode")
+		ParameterSpec inputParam = notNull(CodedInputStream.class, "input");
+
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("decode")
 				.addModifiers(Modifier.PUBLIC)
 				.addAnnotation(Override.class)
 				.addAnnotation(Nullable.class)
 				.returns(userTypeName)
-				.addParameter(notNull(CodedInputStream.class, "input"))
-				.addException(IOException.class)
-				.addStatement("return null")
-				.build();
+				.addParameter(inputParam)
+				.addException(IOException.class);
+
+		String tagVar = "tag";
+		methodBuilder.addStatement("int $L = $L.readTag()", tagVar, inputParam.name);
+		CodeBlock.Builder switchBuilder = CodeBlock.builder().beginControlFlow("switch($L)", tagVar);
+		for (FieldDescriptorProto field : descriptor.getFieldList()){
+			int tagValue = WireFormatProxy.makeTag(field.getNumber(), field.getType());
+			switchBuilder.add("case $L: return null; // $L\n", tagValue, field.getName());
+			// TODO: Actually decode the value
+		}
+		switchBuilder.add("default: return null;\n");
+		switchBuilder.endControlFlow();
+
+		methodBuilder.addCode(switchBuilder.build());
+
+		return methodBuilder.build();
 	}
 
 
@@ -423,7 +439,7 @@ public class ProtobufJavaZero{
 	private static String codecInstanceExpr(@NotNull FieldDescriptorProto field){
 		String typeName = field.getTypeName();
 		String codecTypeName;
-		if (typeName.startsWith(".")){
+		if (typeName.startsWith(".")){ // Fully qualified name (sans the '.')
 			// Convert each inner type name to the name of its codec
 			ClassName fieldClassName = ClassName.bestGuess(typeName.substring(1));
 			codecTypeName = fieldClassName.packageName() + "." +
@@ -434,7 +450,7 @@ public class ProtobufJavaZero{
 		}
 		else{
 			// We can just return the type name, without the types its nested in, because the Java
-			// scoping rules are (should be?) the same as in protobuf.
+			// scoping rules are (I think) the same as in protobuf.
 			codecTypeName = codecSimpleName(typeName);
 		}
 

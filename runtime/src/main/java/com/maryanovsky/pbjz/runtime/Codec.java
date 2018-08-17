@@ -3,7 +3,9 @@ package com.maryanovsky.pbjz.runtime;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
 import com.google.protobuf.WireFormat;
 
 import org.jetbrains.annotations.NotNull;
@@ -27,28 +29,18 @@ public abstract class Codec<T>{
 
 	/**
 	 * Writes the given value of the user-defined type into a {@link CodedOutputStream}.
-	 * This is the method to use in order to write a value of the user-defined type.
+	 * This is the public method to use in order to write a single value of the user-defined type.
 	 */
-	public void write(@NotNull CodedOutputStream output, @Nullable T value) throws IOException{
-		if (value != null){
-			encode(output, value);
-		}
-	}
+	public abstract void write(@NotNull CodedOutputStream output, @NotNull T value) throws IOException;
 
 
 
 	/**
-	 * Encodes the given value of the user-defined type into a {@link CodedOutputStream}.
+	 * Reads a single value of the user defined type from the given {@link CodedInputStream}.
+	 * This is the public method to use in order to read a single value of the user-defined type.
 	 */
-	protected abstract void encode(@NotNull CodedOutputStream output, @NotNull T value) throws IOException;
-
-
-
-	/**
-	 * Decodes a single value of the user-defined type from the given {@link CodedInputStream}.
-	 */
-	@Nullable
-	protected abstract T decode(@NotNull CodedInputStream input) throws IOException;
+	@NotNull
+	public abstract T read(@NotNull CodedInputStream input) throws IOException;
 
 
 
@@ -334,7 +326,7 @@ public abstract class Codec<T>{
 	 * same way as an empty string.
 	 */
 	protected static void writeStringField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable String value) throws IOException{
-		if ((value != null) && !value.isEmpty()){
+		if (value != null){
 			output.writeString(fieldNumber, value);
 		}
 	}
@@ -345,7 +337,7 @@ public abstract class Codec<T>{
 	 * Computes the serialized size of a {@link String} field, at the given field number.
 	 */
 	protected static int computeStringFieldSize(int fieldNumber, @Nullable String value){
-		return ((value == null) || value.isEmpty()) ? 0 : CodedOutputStream.computeStringSize(fieldNumber, value);
+		return (value == null) ? 0 : CodedOutputStream.computeStringSize(fieldNumber, value);
 	}
 
 
@@ -355,7 +347,7 @@ public abstract class Codec<T>{
 	 * way as a byte array of zero length.
 	 */
 	protected static void writeBytesField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable byte[] value) throws IOException{
-		if ((value != null) && (value.length != 0)){
+		if (value != null){
 			output.writeByteArray(fieldNumber, value);
 		}
 	}
@@ -366,7 +358,7 @@ public abstract class Codec<T>{
 	 * Computes the serialized size of a byte array field, at the given field number.
 	 */
 	protected static int computeBytesFieldSize(int fieldNumber, @Nullable byte[] value){
-		return ((value == null) || (value.length == 0)) ? 0 : CodedOutputStream.computeByteArraySize(fieldNumber, value);
+		return (value == null) ? 0 : CodedOutputStream.computeByteArraySize(fieldNumber, value);
 	}
 
 
@@ -383,12 +375,28 @@ public abstract class Codec<T>{
 
 
 	/**
-	 * The the given value of the user-defined type, sans the tag.
+	 * Writes the given value of the user-defined type, sans the tag.
 	 * This is the equivalent of {@link CodedOutputStream#writeMessageNoTag(MessageLite)}.
 	 */
 	private void writeFieldNoTag(@NotNull CodedOutputStream output, @NotNull T value) throws IOException{
 		output.writeUInt32NoTag(computeSerializedSize(value));
-		encode(output, value);
+		write(output, value);
+	}
+
+
+
+	/**
+	 * Reads a field of the user-defined type.
+	 * This is the equivalent of {@link CodedInputStream#readMessage(Parser, ExtensionRegistryLite)}
+	 */
+	public T readField(@NotNull CodedInputStream input) throws IOException{
+		int length = input.readRawVarint32();
+		int oldLimit = input.pushLimit(length);
+		T result = read(input);
+		input.checkLastTagWas(0);
+		input.popLimit(oldLimit);
+
+		return result;
 	}
 
 

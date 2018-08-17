@@ -83,6 +83,63 @@ public class ProtobufJavaZero{
 
 
 	/**
+	 * Maps protobuf primitive types to the names of the methods in {@link CodedInputStream} that
+	 * read them.
+	 */
+	@NotNull
+	private static final Map<Type, String> READ_METHOD_NAMES_BY_PRIMITIVE_TYPE;
+	static{
+		Map<Type, String> methodNames = new EnumMap<>(Type.class);
+		methodNames.put(Type.TYPE_DOUBLE, "readDouble");
+		methodNames.put(Type.TYPE_FLOAT, "readFloat");
+		methodNames.put(Type.TYPE_INT32, "readInt32");
+		methodNames.put(Type.TYPE_INT64, "readInt64");
+		methodNames.put(Type.TYPE_UINT32, "readUInt32");
+		methodNames.put(Type.TYPE_UINT64, "readUInt64");
+		methodNames.put(Type.TYPE_SINT32, "readSInt32");
+		methodNames.put(Type.TYPE_SINT64, "readSInt64");
+		methodNames.put(Type.TYPE_FIXED32, "readFixed32");
+		methodNames.put(Type.TYPE_FIXED64, "readFixed64");
+		methodNames.put(Type.TYPE_SFIXED32, "readSFixed32");
+		methodNames.put(Type.TYPE_SFIXED64, "readSFixed64");
+		methodNames.put(Type.TYPE_BOOL, "readBool");
+		methodNames.put(Type.TYPE_STRING, "readStringRequireUtf8");
+		methodNames.put(Type.TYPE_BYTES, "readByteArray");
+
+		READ_METHOD_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
+	}
+
+
+
+	/**
+	 * Maps protobuf primitive types to the names of the corresponding Java types.
+	 */
+	@NotNull
+	private static final Map<Type, String> JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE;
+	static{
+		Map<Type, String> methodNames = new EnumMap<>(Type.class);
+		methodNames.put(Type.TYPE_DOUBLE, "double");
+		methodNames.put(Type.TYPE_FLOAT, "float");
+		methodNames.put(Type.TYPE_INT32, "int");
+		methodNames.put(Type.TYPE_INT64, "long");
+		methodNames.put(Type.TYPE_UINT32, "int");
+		methodNames.put(Type.TYPE_UINT64, "long");
+		methodNames.put(Type.TYPE_SINT32, "int");
+		methodNames.put(Type.TYPE_SINT64, "long");
+		methodNames.put(Type.TYPE_FIXED32, "int");
+		methodNames.put(Type.TYPE_FIXED64, "long");
+		methodNames.put(Type.TYPE_SFIXED32, "int");
+		methodNames.put(Type.TYPE_SFIXED64, "long");
+		methodNames.put(Type.TYPE_BOOL, "boolean");
+		methodNames.put(Type.TYPE_STRING, "String");
+		methodNames.put(Type.TYPE_BYTES, "byte[]");
+
+		JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
+	}
+
+
+
+	/**
 	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that
 	 * compute their serialized sizes.
 	 */
@@ -179,8 +236,8 @@ public class ProtobufJavaZero{
 		if (userTypeOuterClassName != null) // Nested types must be static
 			builder.addModifiers(Modifier.STATIC);
 
-		builder.addMethod(genEncodeMethod(userTypeName, descriptor))
-				.addMethod(genDecodeMethod(userTypeName, descriptor))
+		builder.addMethod(genWriteMethod(userTypeName, descriptor))
+				.addMethod(genReadMethod(userTypeName, descriptor))
 				.addMethod(genSizeComputerMethod(userTypeName, descriptor));
 
 
@@ -201,15 +258,15 @@ public class ProtobufJavaZero{
 
 	/**
 	 * Generates a method that encodes objects of a user-defined type into messages described by the
-	 * given descriptor - an implementation of {@link Codec#encode(CodedOutputStream, Object)}.
+	 * given descriptor - an implementation of {@link Codec#write(CodedOutputStream, Object)}.
 	 */
 	@NotNull
-	private static MethodSpec genEncodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
+	private static MethodSpec genWriteMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
 		ParameterSpec outputParam = notNull(CodedOutputStream.class, "output");
 		ParameterSpec valueParam = notNull(userTypeName, "value");
 
-		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("encode")
-				.addModifiers(Modifier.PROTECTED)
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("write")
+				.addModifiers(Modifier.PUBLIC)
 				.addAnnotation(Override.class)
 				.returns(void.class)
 				.addParameter(outputParam)
@@ -217,6 +274,7 @@ public class ProtobufJavaZero{
 				.addException(IOException.class);
 
 
+		// TODO: write the fields in the order of their numbers
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			Type fieldType = field.getType();
 			String getterName = fieldGetterName(field.getName(), fieldType);
@@ -229,6 +287,7 @@ public class ProtobufJavaZero{
 			}
 			else if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
 				// e.g. TypeCodec.INSTANCE.writeField(output, 3, value.getThirdField())
+				// This works for enums too, because the method name in EnumCodec just happens to also be writeField
 				methodBuilder.addStatement("$L.writeField($N, $L, $N.$N())",
 						codecInstanceExpr(field), outputParam, field.getNumber(), valueParam, getterName);
 			}
@@ -243,32 +302,98 @@ public class ProtobufJavaZero{
 
 	/**
 	 * Generates a method that decodes messages described by the given descriptor into objects of
-	 * the user-defined type - an implementation of {@link Codec#decode(CodedInputStream)}.
+	 * the user-defined type - an implementation of {@link Codec#read(CodedInputStream)}.
 	 */
 	@NotNull
-	private static MethodSpec genDecodeMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
+	private static MethodSpec genReadMethod(@NotNull TypeName userTypeName, @NotNull DescriptorProto descriptor){
 		ParameterSpec inputParam = notNull(CodedInputStream.class, "input");
 
-		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("decode")
+		MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("read")
 				.addModifiers(Modifier.PUBLIC)
 				.addAnnotation(Override.class)
-				.addAnnotation(Nullable.class)
+				.addAnnotation(NotNull.class)
 				.returns(userTypeName)
 				.addParameter(inputParam)
 				.addException(IOException.class);
 
-		String tagVar = "tag";
-		methodBuilder.addStatement("int $L = $L.readTag()", tagVar, inputParam.name);
-		CodeBlock.Builder switchBuilder = CodeBlock.builder().beginControlFlow("switch($L)", tagVar);
+		// For each field, create a local variable to hold it
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
-			int tagValue = WireFormatProxy.makeTag(field.getNumber(), field.getType());
-			switchBuilder.add("case $L: return null; // $L\n", tagValue, field.getName());
-			// TODO: Actually decode the value
+			String fieldName = field.getName();
+			String javaTypeName = javaTypeName(field);
+			if (javaTypeName == null){
+				System.err.println("Field type " + field.getType() + " is not supported yet");
+				return methodBuilder.build();
+			}
+
+			String defaultValue = defaultJavaValue(field);
+
+			// e.g. int field = 0;
+			methodBuilder.addStatement("$L $L = $L", javaTypeName, fieldName, defaultValue);
 		}
-		switchBuilder.add("default: return null;\n");
+
+
+		// Generates code like so:
+		// boolean done = false;
+		// while (!done){
+		//     int tag = input.readTag();
+		//     switch (tag){
+		//         case <tag1>: <var1> = input.readTypeOfVar1(); break;
+		//         ...
+		//         case 0: done = true; break;
+		//         default:
+		//           if (!input.skipField(tag))
+		//              done = true;
+		//           break;
+		//     }
+		// }
+		String doneVar = "done";
+		methodBuilder.addStatement("boolean $L = false", doneVar);
+		CodeBlock.Builder whileNotDoneBuilder = CodeBlock.builder().beginControlFlow("while (!$L)", doneVar);
+
+		String tagVar = "tag";
+		whileNotDoneBuilder.addStatement("int $L = $L.readTag()", tagVar, inputParam.name);
+		CodeBlock.Builder switchBuilder = CodeBlock.builder().beginControlFlow("switch($L)", tagVar);
+		switchBuilder.add("case 0: $L = true; break;\n", doneVar);
+		for (FieldDescriptorProto field : descriptor.getFieldList()){
+			Type fieldType = field.getType();
+			String fieldName = field.getName();
+			int tagValue = WireFormatProxy.makeTag(field.getNumber(), fieldType);
+			String primitiveReaderMethodName = READ_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
+
+			if (primitiveReaderMethodName != null){ // A primitive type
+				// e.g. case 81: intField = input.readInt32(); break;
+				switchBuilder.add("case $L: $L = $N.$L(); break;\n",
+						tagValue, fieldName, inputParam, primitiveReaderMethodName);
+			}
+			else{ // A user-defined type, with a codec
+				// e.g. case 42: myField = TypeCodec.INSTANCE.decode(input);
+				switchBuilder.add("case $L: $L = $L.readField($N); break;\n",
+						tagValue, fieldName, codecInstanceExpr(field), inputParam);
+			}
+		}
+		switchBuilder.add("default:\n").indent()
+				.add("if (!$N.skipField($L))\n", inputParam, tagVar)
+				.indent().add("$L = true;\n", doneVar).unindent()
+				.add("break;\n");
 		switchBuilder.endControlFlow();
 
-		methodBuilder.addCode(switchBuilder.build());
+		whileNotDoneBuilder.add(switchBuilder.build());
+		whileNotDoneBuilder.endControlFlow();
+
+		methodBuilder.addCode(whileNotDoneBuilder.build());
+
+
+		// Generates e.g. return new Type(var1, ...);
+		String newInstanceArgs = descriptor.getFieldList().stream()
+				.map(FieldDescriptorProto::getName)
+				.collect(Collectors.joining(", "));
+
+		CodeBlock.Builder returnStatement = CodeBlock.builder()
+				.add("return new $T(", userTypeName)
+				.add(newInstanceArgs)
+				.add(")");
+
+		methodBuilder.addStatement(returnStatement.build());
 
 		return methodBuilder.build();
 	}
@@ -363,8 +488,11 @@ public class ProtobufJavaZero{
 				.addParameter(value);
 
 		methodBuilder.beginControlFlow("switch($N)", value);
-		for (EnumValueDescriptorProto enumValue : descriptor.getValueList())
+		for (EnumValueDescriptorProto enumValue : descriptor.getValueList()){
+			if (enumValue.getNumber() == 0) // We interpret 0 as null
+				continue;
 			methodBuilder.addStatement("case $N: return $L", enumValue.getName(), enumValue.getNumber());
+		}
 		methodBuilder.addStatement("default: throw new IllegalArgumentException($N + \" has no corresponding proto value\")", value);
 		methodBuilder.endControlFlow();
 
@@ -388,7 +516,15 @@ public class ProtobufJavaZero{
 				.returns(userTypeName)
 				.addParameter(encoded);
 
-		methodBuilder.addCode("return null;\n");
+		methodBuilder.beginControlFlow("switch($N)", encoded);
+		for (EnumValueDescriptorProto enumValue : descriptor.getValueList()){
+			if (enumValue.getNumber() == 0)
+				methodBuilder.addStatement("case $L: return null", enumValue.getNumber());
+			else
+				methodBuilder.addStatement("case $L: return $T.$N", enumValue.getNumber(), userTypeName, enumValue.getName());
+		}
+		methodBuilder.addStatement("default: throw new IllegalArgumentException($N + \" has no corresponding enum value\")", encoded);
+		methodBuilder.endControlFlow();
 
 		return methodBuilder.build();
 	}
@@ -413,6 +549,7 @@ public class ProtobufJavaZero{
 	private static ParameterSpec notNull(@NotNull Class<?> clazz, @NotNull String paramName){
 		return notNull(ClassName.get(clazz), paramName);
 	}
+
 
 
 	/**
@@ -465,6 +602,49 @@ public class ProtobufJavaZero{
 	@NotNull
 	private static String codecSimpleName(@NotNull String className){
 		return className + "Codec";
+	}
+
+
+
+	/**
+	 * Returns the name of the Java type for the corresponding field.
+	 */
+	@Nullable
+	private static String javaTypeName(@NotNull FieldDescriptorProto field){
+		Type fieldType = field.getType();
+		String javaTypeName = JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE.get(field.getType());
+		if (javaTypeName != null)
+			return javaTypeName;
+
+		if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
+			String typeName = field.getTypeName();
+			if (typeName.startsWith(".")) // Fully qualified name (sans the '.')
+				return typeName.substring(1);
+			else
+				return typeName;
+		}
+
+		return null; // Not a supported type;
+	}
+
+
+
+	/**
+	 * Returns the expression for the default Java value of the given protobuf type.
+	 */
+	@NotNull
+	private static String defaultJavaValue(@NotNull FieldDescriptorProto field){
+		switch (field.getType()){
+			case TYPE_BOOL:
+				return "false";
+			case TYPE_MESSAGE:
+			case TYPE_ENUM:
+			case TYPE_STRING:
+			case TYPE_BYTES:
+				return "null";
+			default:
+				return "0";
+		}
 	}
 
 

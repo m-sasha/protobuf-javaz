@@ -5,7 +5,6 @@ package test;
  */
 public enum Color{
 
-	DEFAULT,
 	RED,
 	BLUE
 

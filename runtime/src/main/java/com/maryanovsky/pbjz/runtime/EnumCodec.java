@@ -1,5 +1,6 @@
 package com.maryanovsky.pbjz.runtime;
 
+import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 
 import org.jetbrains.annotations.NotNull;
@@ -27,12 +28,18 @@ public abstract class EnumCodec<E extends Enum<E>>{
 	 * field number.
 	 */
 	public final void writeField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable E value) throws IOException{
-		if (value != null){
-			int encodedValue = toEncodedValue(value);
-			if (encodedValue != 0){
-				output.writeEnum(fieldNumber, encodedValue);
-			}
-		}
+		if (value != null)
+			output.writeEnum(fieldNumber, toEncodedValue(value));
+	}
+
+
+
+	/**
+	 * Reads a field of the user-defined enum-type from the given {@link CodedInputStream}.
+	 */
+	@Nullable
+	public final E readField(@NotNull CodedInputStream input) throws IOException{
+		return fromEncodedValue(input.readEnum());
 	}
 
 

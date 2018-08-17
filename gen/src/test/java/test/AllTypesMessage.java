@@ -1,5 +1,10 @@
 package test;
 
+import java.util.Arrays;
+import java.util.Objects;
+
+
+
 public class AllTypesMessage{
 
 	private double doubleField;
@@ -111,6 +116,69 @@ public class AllTypesMessage{
 	public Color getColorField(){
 		return colorField;
 	}
+
+
+
+	@Override
+	public boolean equals(Object o){
+		if(this == o) return true;
+		if(o == null || getClass() != o.getClass()) return false;
+		AllTypesMessage that = (AllTypesMessage) o;
+		return Double.compare(that.doubleField, doubleField) == 0 &&
+				Float.compare(that.floatField, floatField) == 0 &&
+				int32Field == that.int32Field &&
+				int64Field == that.int64Field &&
+				uint32Field == that.uint32Field &&
+				uint64Field == that.uint64Field &&
+				sint32Field == that.sint32Field &&
+				sint64Field == that.sint64Field &&
+				fixed32Field == that.fixed32Field &&
+				fixed64Field == that.fixed64Field &&
+				sfixed32Field == that.sfixed32Field &&
+				sfixed64Field == that.sfixed64Field &&
+				boolField == that.boolField &&
+				Objects.equals(stringField, that.stringField) &&
+				Arrays.equals(bytesField, that.bytesField) &&
+				Objects.equals(stringMsgField, that.stringMsgField) &&
+				colorField == that.colorField;
+	}
+
+
+
+	@Override
+	public int hashCode(){
+		int result = Objects.hash(doubleField, floatField, int32Field, int64Field, uint32Field,
+				uint64Field, sint32Field, sint64Field, fixed32Field, fixed64Field, sfixed32Field,
+				sfixed64Field, boolField, stringField, stringMsgField, colorField);
+		result = 31 * result + Arrays.hashCode(bytesField);
+		return result;
+	}
+
+
+
+	@Override
+	public String toString(){
+		return "AllTypesMessage{" +
+				"doubleField=" + doubleField +
+				", floatField=" + floatField +
+				", int32Field=" + int32Field +
+				", int64Field=" + int64Field +
+				", uint32Field=" + uint32Field +
+				", uint64Field=" + uint64Field +
+				", sint32Field=" + sint32Field +
+				", sint64Field=" + sint64Field +
+				", fixed32Field=" + fixed32Field +
+				", fixed64Field=" + fixed64Field +
+				", sfixed32Field=" + sfixed32Field +
+				", sfixed64Field=" + sfixed64Field +
+				", boolField=" + boolField +
+				", stringField='" + stringField + '\'' +
+				", bytesField=" + Arrays.toString(bytesField) +
+				", stringMsgField=" + stringMsgField +
+				", colorField=" + colorField +
+				'}';
+	}
+
 
 
 	public static class InnerMessage{

@@ -12,33 +12,33 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import test.Color;
+import test.ColorMessage;
+import test.ColorMessageCodec;
 import test.Int2Message;
 import test.Int2MessageCodec;
 import test.IntMessage;
 import test.IntMessageCodec;
-import test.ColorMessage;
-import test.ColorMessageCodec;
 import test.OneFieldMessages;
 import test.String2Message;
 import test.String2MessageCodec;
-import test.StringIntMessage;
-import test.StringIntMessageCodec;
 import test.StringColorMessage;
 import test.StringColorMessageCodec;
+import test.StringIntMessage;
+import test.StringIntMessageCodec;
 import test.StringMessage;
 import test.StringMessageCodec;
+import test.StringWithInnerMessage;
 import test.StringWithInnerMessageCodec;
 import test.TwoFieldMessages;
-import test.StringWithInnerMessage;
 
 
 
 /**
- * Runs the test {@link Codec}s, comparing them to the "standard" protobuf encoding/decoding.
+ * Tests the encoding of {@link Codec}s, comparing them to the "standard" protobuf encoding.
  *
  * @author Alexander Maryanovsky
  */
-public class CodecTest{
+public class EncodingTests{
 
 
 
@@ -83,9 +83,10 @@ public class CodecTest{
 	private static void testStringMessageEncoding(String... values) throws IOException{
 		Codec<StringMessage> codec = StringMessageCodec.INSTANCE;
 		for (String value : values){
-			testEncodingEquals(
-					new StringMessage(value), codec,
-					OneFieldMessages.StringMessage.newBuilder().setText(value).build());
+			OneFieldMessages.StringMessage.Builder builder = OneFieldMessages.StringMessage.newBuilder();
+			if (value != null)
+				builder.setText(value);
+			testEncodingEquals(new StringMessage(value), codec, builder.build());
 		}
 	}
 
@@ -97,9 +98,10 @@ public class CodecTest{
 	private static void testColorMessageEncoding(Color... values) throws IOException{
 		Codec<ColorMessage> codec = ColorMessageCodec.INSTANCE;
 		for (Color value : values){
-			testEncodingEquals(
-					new ColorMessage(value), codec,
-					OneFieldMessages.ColorMessage.newBuilder().setColorValue(value.ordinal()).build());
+			OneFieldMessages.ColorMessage.Builder builder = OneFieldMessages.ColorMessage.newBuilder();
+			if (value != null)
+				builder.setColorValue(value.ordinal() + 1); // +1 because the protobuf enum has another value - the default one
+			testEncodingEquals(new ColorMessage(value), codec, builder.build());
 		}
 	}
 
@@ -130,12 +132,13 @@ public class CodecTest{
 	private static void testString2MessageEncoding(String... values) throws IOException{
 		Codec<String2Message> codec = String2MessageCodec.INSTANCE;
 		for (int i = 0; i < values.length - 1; ++i){
+			TwoFieldMessages.String2Message.Builder builder = TwoFieldMessages.String2Message.newBuilder();
+			if (values[i] != null)
+				builder.setText1(values[i]);
+			if (values[i+1] != null)
+				builder.setText2(values[i+1]);
 			testEncodingEquals(
-					new String2Message(values[i], values[i+1]), codec,
-					TwoFieldMessages.String2Message.newBuilder()
-							.setText1(values[i])
-							.setText2(values[i+1])
-							.build());
+					new String2Message(values[i], values[i+1]), codec, builder.build());
 		}
 	}
 
@@ -152,12 +155,12 @@ public class CodecTest{
 		for (int i = 0; i < values.length - 1; ++i){
 			String text = (String)values[i + i%2];
 			int number = (Integer)values[i + (i+1)%2];
+			TwoFieldMessages.StringIntMessage.Builder builder = TwoFieldMessages.StringIntMessage.newBuilder();
+			if (text != null)
+				builder.setText(text);
+			builder.setValue(number);
 			testEncodingEquals(
-					new StringIntMessage(text, number), codec,
-					TwoFieldMessages.StringIntMessage.newBuilder()
-							.setText(text)
-							.setValue(number)
-							.build());
+					new StringIntMessage(text, number), codec, builder.build());
 		}
 	}
 
@@ -174,12 +177,13 @@ public class CodecTest{
 		for (int i = 0; i < values.length - 1; ++i){
 			String text = (String)values[i + i%2];
 			Color color = (Color)values[i + (i+1)%2];
+			TwoFieldMessages.StringColorMessage.Builder builder = TwoFieldMessages.StringColorMessage.newBuilder();
+			if (text != null)
+				builder.setText(text);
+			if (color != null)
+				builder.setColorValue(color.ordinal() + 1); // +1 because the protobuf enum has another value - the default one
 			testEncodingEquals(
-					new StringColorMessage(text, color), codec,
-					TwoFieldMessages.StringColorMessage.newBuilder()
-							.setText(text)
-							.setColorValue(color.ordinal())
-							.build());
+					new StringColorMessage(text, color), codec, builder.build());
 		}
 	}
 
@@ -192,12 +196,15 @@ public class CodecTest{
 	private static void testStringWithInnerMessageEncoding(String... values) throws IOException{
 		Codec<StringWithInnerMessage> codec = StringWithInnerMessageCodec.INSTANCE;
 		for (int i = 0; i < values.length - 1; ++i){
+			OneFieldMessages.StringMessage.Builder innerMessageBuilder = OneFieldMessages.StringMessage.newBuilder();
+			if (values[i+1] != null)
+				innerMessageBuilder.setText(values[i+1]);
+			TwoFieldMessages.StringWithInnerMessage.Builder builder = TwoFieldMessages.StringWithInnerMessage.newBuilder();
+			if (values[i] != null)
+				builder.setText(values[i]);
+			builder.setStringMsg(innerMessageBuilder.build());
 			testEncodingEquals(
-					new StringWithInnerMessage(values[i], new StringMessage(values[i+1])), codec,
-					TwoFieldMessages.StringWithInnerMessage.newBuilder()
-							.setText(values[i])
-							.setStringMsg(OneFieldMessages.StringMessage.newBuilder().setText(values[i+1]).build())
-							.build());
+					new StringWithInnerMessage(values[i], new StringMessage(values[i+1])), codec, builder.build());
 		}
 	}
 
@@ -208,14 +215,16 @@ public class CodecTest{
 	 */
 	@Test
 	public void testEncoding() throws IOException{
+		// Can't test empty string, because the standard implementation encodes it as null, but
+		// we encode null and empty string differently
 		testIntMessageEncoding(5, 42, 0xffffffff, -1, Integer.MAX_VALUE, Integer.MIN_VALUE);
-		testStringMessageEncoding("Hello, World!", "", "\0");
-		testColorMessageEncoding(Color.DEFAULT, Color.BLUE, Color.RED);
+		testStringMessageEncoding("Hello, World!", null, "\0");
+		testColorMessageEncoding(null, null);//, Color.BLUE, Color.RED);
 		testInt2MessageEncoding(-1, 1, 0, 0, 0xffffffff, -1, Integer.MAX_VALUE, Integer.MIN_VALUE);
-		testString2MessageEncoding("", "", "0", "0", "a", "b", "Hello", "Goodbye", "World", "");
-		testStringIntMessageEncoding("Hello", 0, "", -1, "foobar", Integer.MAX_VALUE);
-		testStringColorMessageEncoding("Peace", Color.RED, "Love", Color.DEFAULT, "Happiness", Color.BLUE);
-		testStringWithInnerMessageEncoding("Hello, World!", "", "\0");
+		testString2MessageEncoding(null, null, "0", "0", "a", "b", "Hello", "Goodbye", "World", null);
+		testStringIntMessageEncoding("Hello", 0, null, -1, "foobar", Integer.MAX_VALUE);
+		testStringColorMessageEncoding("Peace", Color.RED, "Love", null, "Happiness", Color.BLUE);
+		testStringWithInnerMessageEncoding("Hello, World!", null, "\0");
 	}
 
 

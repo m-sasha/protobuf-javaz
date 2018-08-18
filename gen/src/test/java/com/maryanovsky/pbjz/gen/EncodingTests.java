@@ -1,6 +1,7 @@
 package com.maryanovsky.pbjz.gen;
 
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 import com.maryanovsky.pbjz.runtime.Codec;
 
@@ -11,6 +12,9 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import test.AllTypesMessage;
+import test.AllTypesMessageCodec;
+import test.AllTypesMessageOuterClass;
 import test.Color;
 import test.ColorMessage;
 import test.ColorMessageCodec;
@@ -211,6 +215,40 @@ public class EncodingTests{
 
 
 	/**
+	 * Tests the encoding of {@link AllTypesMessage} with the given values.
+	 */
+	private static void testAllTypesMessageEncoding(double doubleField, float floatField, int int32Field, long int64Field,
+													int uint32Field, long uint64Field, int sint32Field, long sint64Field,
+													int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field,
+													boolean boolField, String stringField, byte[] bytesField, StringMessage stringMsgField, Color colorField) throws IOException{
+		testEncodingEquals(new AllTypesMessage(doubleField, floatField, int32Field, int64Field, uint32Field, uint64Field,
+						sint32Field, sint64Field, fixed32Field, fixed64Field, sfixed32Field, sfixed64Field, boolField, stringField,
+						bytesField, stringMsgField, colorField), AllTypesMessageCodec.INSTANCE,
+				AllTypesMessageOuterClass.AllTypesMessage.newBuilder()
+					.setDoubleField(doubleField)
+					.setFloatField(floatField)
+					.setInt32Field(int32Field)
+					.setInt64Field(int64Field)
+					.setUint32Field(uint32Field)
+					.setUint64Field(uint64Field)
+					.setSint32Field(sint32Field)
+					.setSint64Field(sint64Field)
+					.setFixed32Field(fixed32Field)
+					.setFixed64Field(fixed64Field)
+					.setSfixed32Field(sfixed32Field)
+					.setSfixed64Field(sfixed64Field)
+					.setBoolField(boolField)
+					.setStringField(stringField)
+					.setBytesField(ByteString.copyFrom(bytesField))
+					.setStringMsgField(OneFieldMessages.StringMessage.newBuilder().setText(stringMsgField.getText()))
+					.setColorFieldValue(colorField.ordinal() + 1)
+					.build()
+				);
+	}
+
+
+
+	/**
 	 * Runs the encoding tests.
 	 */
 	@Test
@@ -225,6 +263,11 @@ public class EncodingTests{
 		testStringIntMessageEncoding("Hello", 0, null, -1, "foobar", Integer.MAX_VALUE);
 		testStringColorMessageEncoding("Peace", Color.RED, "Love", null, "Happiness", Color.BLUE);
 		testStringWithInnerMessageEncoding("Hello, World!", null, "\0");
+		testAllTypesMessageEncoding(1.23, 3.45f, -50, -1234567890240L,
+				50, 1234567890240L,50, -1234567890240L,
+				50, 1234567890240L, 50, 1234567890240L,
+				true, "Hello,", new byte[]{1, -2},
+				new StringMessage("World"), Color.RED);
 	}
 
 

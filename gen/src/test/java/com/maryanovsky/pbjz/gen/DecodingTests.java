@@ -11,6 +11,8 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import test.AllTypesMessage;
+import test.AllTypesMessageCodec;
 import test.Color;
 import test.ColorMessage;
 import test.ColorMessageCodec;
@@ -162,6 +164,20 @@ public class DecodingTests{
 
 
 	/**
+	 * Tests the decoding of {@link AllTypesMessage} with the given values.
+	 */
+	private static void testAllTypesMessageDecoding(double doubleField, float floatField, int int32Field, long int64Field,
+													int uint32Field, long uint64Field, int sint32Field, long sint64Field,
+													int fixed32Field, long fixed64Field, int sfixed32Field, long sfixed64Field,
+													boolean boolField, String stringField, byte[] bytesField, StringMessage stringMsgField, Color colorField) throws IOException{
+		testEncDecEquals(new AllTypesMessage(doubleField, floatField, int32Field, int64Field, uint32Field, uint64Field,
+						sint32Field, sint64Field, fixed32Field, fixed64Field, sfixed32Field, sfixed64Field, boolField, stringField,
+						bytesField, stringMsgField, colorField), AllTypesMessageCodec.INSTANCE);
+	}
+
+
+
+	/**
 	 * Runs the decoding tests.
 	 */
 	@Test
@@ -174,6 +190,11 @@ public class DecodingTests{
 		testStringIntMessageDecoding("Hello", 0, null, -1, "foobar", Integer.MAX_VALUE);
 		testStringColorMessageDecoding("Peace", Color.RED, "Love", null, "Happiness", Color.BLUE);
 		testStringWithInnerMessageDecoding("Hello, World!", "", null, "\0");
+		testAllTypesMessageDecoding(1.23, 3.45f, -50, -1234567890240L,
+				50, 1234567890240L,50, -1234567890240L,
+				50, 1234567890240L, 50, 1234567890240L,
+				true, "Hello,", new byte[]{1, -2},
+				new StringMessage("World"), Color.RED);
 	}
 
 

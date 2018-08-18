@@ -55,9 +55,8 @@ public abstract class Codec<T>{
 	 * Writes a {@code double} field at the given field number.
 	 */
 	protected static void writeDoubleField(@NotNull CodedOutputStream output, int fieldNumber, double value) throws IOException{
-		if (value != 0D){
+		if (value != 0D)
 			output.writeDouble(fieldNumber, value);
-		}
 	}
 
 
@@ -72,12 +71,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code double} field, not including the tag.
+	 */
+	protected static int computeRepeatedDoubleFieldSize(@NotNull double[] values){
+		return values.length * 8; // See CodedOutputStream.computeDoubleSizeNoTag
+	}
+
+
+
+	/**
 	 * Writes a {@code float} field at the given field number.
 	 */
 	protected static void writeFloatField(@NotNull CodedOutputStream output, int fieldNumber, float value) throws IOException{
-		if (value != 0F){
+		if (value != 0F)
 			output.writeFloat(fieldNumber, value);
-		}
 	}
 
 
@@ -92,12 +99,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code float} field, not including the tag.
+	 */
+	protected static int computeRepeatedFloatFieldSize(@NotNull float[] values){
+		return values.length * 4; // See CodedOutputStream.computeFloatSizeNoTag
+	}
+
+
+
+	/**
 	 * Writes an {@code int} field at the given field number, encoded in {@code int32} format.
 	 */
 	protected static void writeInt32Field(@NotNull CodedOutputStream output, int fieldNumber, int value) throws IOException{
-		if (value != 0){
+		if (value != 0)
 			output.writeInt32(fieldNumber, value);
-		}
 	}
 
 
@@ -113,12 +128,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code int32} field, not including the tag.
+	 */
+	protected static int computeRepeatedInt32FieldSize(@NotNull int[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeInt32SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes a {@code long} field at the given field number, encoded in {@code int64} format.
 	 */
 	protected static void writeInt64Field(@NotNull CodedOutputStream output, int fieldNumber, long value) throws IOException{
-		if (value != 0L) {
+		if (value != 0L)
 			output.writeInt64(fieldNumber, value);
-		}
 	}
 
 
@@ -134,12 +160,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code int64} field, not including the tag.
+	 */
+	protected static int computeRepeatedInt64FieldSize(@NotNull long[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeInt64SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes an {@code int} field at the given field number, encoded in {@code uint32} format.
 	 */
 	protected static void writeUInt32Field(@NotNull CodedOutputStream output, int fieldNumber, int value) throws IOException{
-		if (value != 0){
+		if (value != 0)
 			output.writeUInt32(fieldNumber, value);
-		}
 	}
 
 
@@ -155,12 +192,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code uint32} field, not including the tag.
+	 */
+	protected static int computeRepeatedUInt32FieldSize(@NotNull int[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeUInt32SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes a {@code long} field at the given field number, encoded in {@code uint64} format.
 	 */
 	protected static void writeUInt64Field(@NotNull CodedOutputStream output, int fieldNumber, long value) throws IOException{
-		if (value != 0L){
+		if (value != 0L)
 			output.writeUInt64(fieldNumber, value);
-		}
 	}
 
 
@@ -176,12 +224,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code uint64} field, not including the tag.
+	 */
+	protected static int computeRepeatedUInt64FieldSize(@NotNull long[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeUInt64SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes an {@code int} field at the given field number, encoded in {@code sint32} format.
 	 */
 	protected static void writeSInt32Field(@NotNull CodedOutputStream output, int fieldNumber, int value) throws IOException{
-		if (value != 0){
+		if (value != 0)
 			output.writeSInt32(fieldNumber, value);
-		}
 	}
 
 
@@ -197,12 +256,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code sint32} field, not including the tag.
+	 */
+	protected static int computeRepeatedSInt32FieldSize(@NotNull int[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeSInt32SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes a {@code long} field at the given field number, encoded in {@code sint64} format.
 	 */
 	protected static void writeSInt64Field(@NotNull CodedOutputStream output, int fieldNumber, long value) throws IOException{
-		if (value != 0L){
+		if (value != 0L)
 			output.writeSInt64(fieldNumber, value);
-		}
 	}
 
 
@@ -218,12 +288,23 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code sint64} field, not including the tag.
+	 */
+	protected static int computeRepeatedSInt64FieldSize(@NotNull long[] values){
+		int size = 0;
+		for (int i = 0; i < values.length; i++)
+			size += CodedOutputStream.computeSInt64SizeNoTag(values[i]);
+		return size;
+	}
+
+
+
+	/**
 	 * Writes an {@code int} field at the given field number, encoded in {@code fixed32} format.
 	 */
 	protected static void writeFixed32Field(@NotNull CodedOutputStream output, int fieldNumber, int value) throws IOException{
-		if (value != 0){
+		if (value != 0)
 			output.writeFixed32(fieldNumber, value);
-		}
 	}
 
 
@@ -239,12 +320,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code fixed32} field, not including the tag.
+	 */
+	protected static int computeRepeatedFixed32FieldSize(@NotNull int[] values){
+		return values.length * 4; // See CodedOutputStream.computeFixed32SizeNoTag
+	}
+
+
+
+	/**
 	 * Writes a {@code long} field at the given field number, encoded in {@code fixed64} format.
 	 */
 	protected static void writeFixed64Field(@NotNull CodedOutputStream output, int fieldNumber, long value) throws IOException{
-		if (value != 0L){
+		if (value != 0L)
 			output.writeFixed64(fieldNumber, value);
-		}
 	}
 
 
@@ -260,12 +349,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code fixed64} field, not including the tag.
+	 */
+	protected static int computeRepeatedFixed64FieldSize(@NotNull long[] values){
+		return values.length * 8; // See CodedOutputStream.computeFixed64SizeNoTag
+	}
+
+
+
+	/**
 	 * Writes an {@code int} field at the given field number, encoded in {@code sfixed32} format.
 	 */
 	protected static void writeSFixed32Field(@NotNull CodedOutputStream output, int fieldNumber, int value) throws IOException{
-		if (value != 0){
+		if (value != 0)
 			output.writeSFixed32(fieldNumber, value);
-		}
 	}
 
 
@@ -281,12 +378,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code sfixed32} field, not including the tag.
+	 */
+	protected static int computeRepeatedSFixed32FieldSize(@NotNull int[] values){
+		return values.length * 4; // See CodedOutputStream.computeSFixed32SizeNoTag
+	}
+
+
+
+	/**
 	 * Writes a {@code long} field at the given field number, encoded in {@code sfixed64} format.
 	 */
 	protected static void writeSFixed64Field(@NotNull CodedOutputStream output, int fieldNumber, long value) throws IOException{
-		if (value != 0L){
+		if (value != 0L)
 			output.writeSFixed64(fieldNumber, value);
-		}
 	}
 
 
@@ -302,12 +407,20 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code sfixed64} field, not including the tag.
+	 */
+	protected static int computeRepeatedSFixed64FieldSize(@NotNull long[] values){
+		return values.length * 8; // See CodedOutputStream.computeSFixed64SizeNoTag
+	}
+
+
+
+	/**
 	 * Writes a {@code boolean} field at the given field number.
 	 */
 	protected static void writeBoolField(@NotNull CodedOutputStream output, int fieldNumber, boolean value) throws IOException{
-		if (value){
+		if (value)
 			output.writeBool(fieldNumber, true);
-		}
 	}
 
 
@@ -322,13 +435,21 @@ public abstract class Codec<T>{
 
 
 	/**
+	 * Computes the serialized size of a repeated {@code boolean} field, not including the tag.
+	 */
+	protected static int computeRepeatedBoolFieldSize(@NotNull boolean[] values){
+		return values.length; // See CodedOutputStream.computeBoolSizeNoTag
+	}
+
+
+
+	/**
 	 * Writes a {@link String} field at the given field number. A {@code null} value is treated the
 	 * same way as an empty string.
 	 */
 	protected static void writeStringField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable String value) throws IOException{
-		if (value != null){
+		if (value != null)
 			output.writeString(fieldNumber, value);
-		}
 	}
 
 
@@ -347,9 +468,8 @@ public abstract class Codec<T>{
 	 * way as a byte array of zero length.
 	 */
 	protected static void writeBytesField(@NotNull CodedOutputStream output, int fieldNumber, @Nullable byte[] value) throws IOException{
-		if (value != null){
+		if (value != null)
 			output.writeByteArray(fieldNumber, value);
-		}
 	}
 
 

@@ -167,6 +167,61 @@ public class ProtobufJavaZero{
 	}
 
 
+
+	/**
+	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that
+	 * compute the sizes of repeated fields of this type.
+	 */
+	@NotNull
+	private static final Map<Type, String> COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE;
+	static{
+		Map<Type, String> methodNames = new EnumMap<>(Type.class);
+		methodNames.put(Type.TYPE_DOUBLE, "computeRepeatedDoubleFieldSize");
+		methodNames.put(Type.TYPE_FLOAT, "computeRepeatedFloatFieldSize");
+		methodNames.put(Type.TYPE_INT32, "computeRepeatedInt32FieldSize");
+		methodNames.put(Type.TYPE_INT64, "computeRepeatedInt64FieldSize");
+		methodNames.put(Type.TYPE_UINT32, "computeRepeatedUInt32FieldSize");
+		methodNames.put(Type.TYPE_UINT64, "computeRepeatedUInt64FieldSize");
+		methodNames.put(Type.TYPE_SINT32, "computeRepeatedSInt32FieldSize");
+		methodNames.put(Type.TYPE_SINT64, "computeRepeatedSInt64FieldSize");
+		methodNames.put(Type.TYPE_FIXED32, "computeRepeatedFixed32FieldSize");
+		methodNames.put(Type.TYPE_FIXED64, "computeRepeatedFixed64FieldSize");
+		methodNames.put(Type.TYPE_SFIXED32, "computeRepeatedSFixed32FieldSize");
+		methodNames.put(Type.TYPE_SFIXED64, "computeRepeatedSFixed64FieldSize");
+		methodNames.put(Type.TYPE_BOOL, "computeRepeatedBoolFieldSize");
+
+		COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE = Collections.unmodifiableMap(methodNames);
+	}
+
+
+
+	/**
+	 * Maps protobuf primitive types to the names of the methods in {@link CodedOutputStream} that
+	 * write fields of this type without a tag.
+	 */
+	@NotNull
+	private static final Map<Type, String> WRITE_NO_TAG_METHOD_NAMES_BY_TYPE;
+	static{
+		Map<Type, String> methodNames = new EnumMap<>(Type.class);
+		methodNames.put(Type.TYPE_DOUBLE, "writeDoubleNoTag");
+		methodNames.put(Type.TYPE_FLOAT, "writeFloatNoTag");
+		methodNames.put(Type.TYPE_INT32, "writeInt32NoTag");
+		methodNames.put(Type.TYPE_INT64, "writeInt64NoTag");
+		methodNames.put(Type.TYPE_UINT32, "writeUInt32NoTag");
+		methodNames.put(Type.TYPE_UINT64, "writeUInt64NoTag");
+		methodNames.put(Type.TYPE_SINT32, "writeSInt32NoTag");
+		methodNames.put(Type.TYPE_SINT64, "writeSInt64NoTag");
+		methodNames.put(Type.TYPE_FIXED32, "writeFixed32NoTag");
+		methodNames.put(Type.TYPE_FIXED64, "writeFixed64NoTag");
+		methodNames.put(Type.TYPE_SFIXED32, "writeSFixed32NoTag");
+		methodNames.put(Type.TYPE_SFIXED64, "writeSFixed64NoTag");
+		methodNames.put(Type.TYPE_BOOL, "writeBoolNoTag");
+
+		WRITE_NO_TAG_METHOD_NAMES_BY_TYPE = Collections.unmodifiableMap(methodNames);
+	}
+
+
+
 	/**
 	 * The main method, invoked by protoc.
 	 */
@@ -277,19 +332,50 @@ public class ProtobufJavaZero{
 		// TODO: write the fields in the order of their numbers
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			Type fieldType = field.getType();
+			int fieldNumber = field.getNumber();
 			String getterName = fieldGetterName(field.getName(), fieldType);
 			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			if (primitiveWriterMethodName != null){ // A primitive type
+			if (field.hasLabel() && (field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED)){ // Repeated field
+
+				// Generates code like so:
+				// int[] _arr = value.getArr();
+				// if (arr != null){
+				//   output.writeUInt32NoTag(10);
+				//   output.writeUInt32NoTagcomputeRepeatedInt32FieldSize(_arr));
+				//   for (int i = 0; i < _arr.length; ++i)
+				//     output.writeInt32NoTag(_arr[i]);
+				// }
+				String computeRepeatedSizeMethodName = COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.get(fieldType);
+				if (computeRepeatedSizeMethodName != null){ // A type that is packed when repeated
+					String writeNoTagMethod = WRITE_NO_TAG_METHOD_NAMES_BY_TYPE.get(fieldType);
+					String javaTypeName = javaTypeName(field);
+					String fieldValueLocalVarName = "_" + field.getName();
+					methodBuilder.addStatement("$L[] $L = $N.$N()", javaTypeName, fieldValueLocalVarName, valueParam, getterName); // e.g. int[] _arr = value.getArr()
+					methodBuilder.beginControlFlow("if ($L != null)", fieldValueLocalVarName)
+							.addStatement("$N.writeUInt32NoTag($L)", outputParam, WireFormatProxy.makeLengthDelimitedTag(fieldNumber))
+							.addStatement("$N.writeUInt32NoTag($L($L))", outputParam, computeRepeatedSizeMethodName, fieldValueLocalVarName)
+							.addCode(CodeBlock.builder()
+									.beginControlFlow("for (int i = 0; i < $L.length; ++i)", fieldValueLocalVarName)
+									.addStatement("$N.$L($L[i])", outputParam, writeNoTagMethod, fieldValueLocalVarName)
+									.endControlFlow()
+									.build())
+							.endControlFlow();
+				}
+				else{
+					// TODO: Implemented non-packed repeated types
+				}
+			}
+			else if (primitiveWriterMethodName != null){ // A primitive type
 				// e.g. writeFloatField(output, 2, value.getSecondField())
 				methodBuilder.addStatement("$L($N, $L, $N.$N())",
-						primitiveWriterMethodName, outputParam, field.getNumber(), valueParam, getterName);
+						primitiveWriterMethodName, outputParam, fieldNumber, valueParam, getterName);
 			}
 			else if ((fieldType == Type.TYPE_MESSAGE) || (fieldType == Type.TYPE_ENUM)){ // A user-defined type, with a codec
 				// e.g. TypeCodec.INSTANCE.writeField(output, 3, value.getThirdField())
 				// This works for enums too, because the method name in EnumCodec just happens to also be writeField
 				methodBuilder.addStatement("$L.writeField($N, $L, $N.$N())",
-						codecInstanceExpr(field), outputParam, field.getNumber(), valueParam, getterName);
+						codecInstanceExpr(field), outputParam, fieldNumber, valueParam, getterName);
 			}
 			else
 				System.err.println("Field type " + fieldType + " not supported yet");
@@ -374,7 +460,7 @@ public class ProtobufJavaZero{
 		switchBuilder.add("default:\n").indent()
 				.add("if (!$N.skipField($L))\n", inputParam, tagVar)
 				.indent().add("$L = true;\n", doneVar).unindent()
-				.add("break;\n");
+				.add("break;\n").unindent();
 		switchBuilder.endControlFlow();
 
 		whileNotDoneBuilder.add(switchBuilder.build());

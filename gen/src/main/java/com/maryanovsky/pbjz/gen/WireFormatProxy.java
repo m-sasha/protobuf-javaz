@@ -66,16 +66,34 @@ public class WireFormatProxy{
 
 
 	/**
-	 * Returns the tag value, given the field number and the
-	 * {@link DescriptorProtos.FieldDescriptorProto.Type type} of the field.
+	 * Invokes the {@link WireFormat#makeTag} and returns the result.
 	 */
-	public static int makeTag(int fieldNumber, DescriptorProtos.FieldDescriptorProto.Type fieldType){
-		int wireType = PROTO_TO_FIELD_TYPE.get(fieldType).getWireType();
+	private static int makeTag(int fieldNumber, int wireType){
 		try{
 			return (Integer)MAKE_TAG_METHOD.invoke(null, fieldNumber, wireType);
 		} catch (IllegalAccessException | InvocationTargetException e){
 			throw new IllegalStateException("Unable to invoke WireFormat.makeTag(int, int)", e);
 		}
+	}
+
+
+
+	/**
+	 * Returns the tag value, given the field number and the
+	 * {@link DescriptorProtos.FieldDescriptorProto.Type type} of the field.
+	 */
+	public static int makeTag(int fieldNumber, DescriptorProtos.FieldDescriptorProto.Type fieldType){
+		int wireType = PROTO_TO_FIELD_TYPE.get(fieldType).getWireType();
+		return makeTag(fieldNumber, wireType);
+	}
+
+
+
+	/**
+	 * Returns the tag value for length delimited fields, given the field number.
+	 */
+	public static int makeLengthDelimitedTag(int fieldNumber){
+		return makeTag(fieldNumber, WireFormat.WIRETYPE_LENGTH_DELIMITED);
 	}
 
 

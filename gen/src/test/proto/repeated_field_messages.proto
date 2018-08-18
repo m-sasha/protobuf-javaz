@@ -1,0 +1,37 @@
+
+syntax = "proto3";
+
+package test;
+
+import "one_field_messages.proto";
+
+
+message RepeatedStringMessage{
+
+    repeated string texts = 1;
+
+}
+
+message RepeatedIntMessage{
+
+    repeated int32 values = 1;
+
+}
+
+
+message RepeatedColorMessage{
+
+    repeated Color colors = 1;
+
+}
+
+
+message RepeatedTypesMessage{
+
+    repeated int32 intValues = 1;
+    repeated double doubleValues = 2;
+    repeated string stringValues = 3;
+    repeated IntMessage intMessages = 4;
+    repeated bool boolValues = 5;
+
+}

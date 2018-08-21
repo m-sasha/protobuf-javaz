@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -147,21 +148,21 @@ public class ProtobufJavaZero{
 	private static final Map<Type, String> COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
-		methodNames.put(Type.TYPE_DOUBLE, "computeDoubleFieldSize");
-		methodNames.put(Type.TYPE_FLOAT, "computeFloatFieldSize");
-		methodNames.put(Type.TYPE_INT32, "computeInt32FieldSize");
-		methodNames.put(Type.TYPE_INT64, "computeInt64FieldSize");
-		methodNames.put(Type.TYPE_UINT32, "computeUInt32FieldSize");
-		methodNames.put(Type.TYPE_UINT64, "computeUInt64FieldSize");
-		methodNames.put(Type.TYPE_SINT32, "computeSInt32FieldSize");
-		methodNames.put(Type.TYPE_SINT64, "computeSInt64FieldSize");
-		methodNames.put(Type.TYPE_FIXED32, "computeFixed32FieldSize");
-		methodNames.put(Type.TYPE_FIXED64, "computeFixed64FieldSize");
-		methodNames.put(Type.TYPE_SFIXED32, "computeSFixed32FieldSize");
-		methodNames.put(Type.TYPE_SFIXED64, "computeSFixed64FieldSize");
-		methodNames.put(Type.TYPE_BOOL, "computeBoolFieldSize");
-		methodNames.put(Type.TYPE_STRING, "computeStringFieldSize");
-		methodNames.put(Type.TYPE_BYTES, "computeBytesFieldSize");
+		methodNames.put(Type.TYPE_DOUBLE, "doubleFieldSize");
+		methodNames.put(Type.TYPE_FLOAT, "floatFieldSize");
+		methodNames.put(Type.TYPE_INT32, "int32FieldSize");
+		methodNames.put(Type.TYPE_INT64, "int64FieldSize");
+		methodNames.put(Type.TYPE_UINT32, "uInt32FieldSize");
+		methodNames.put(Type.TYPE_UINT64, "uInt64FieldSize");
+		methodNames.put(Type.TYPE_SINT32, "sInt32FieldSize");
+		methodNames.put(Type.TYPE_SINT64, "sInt64FieldSize");
+		methodNames.put(Type.TYPE_FIXED32, "fixed32FieldSize");
+		methodNames.put(Type.TYPE_FIXED64, "fixed64FieldSize");
+		methodNames.put(Type.TYPE_SFIXED32, "sFixed32FieldSize");
+		methodNames.put(Type.TYPE_SFIXED64, "sFixed64FieldSize");
+		methodNames.put(Type.TYPE_BOOL, "boolFieldSize");
+		methodNames.put(Type.TYPE_STRING, "stringFieldSize");
+		methodNames.put(Type.TYPE_BYTES, "bytesFieldSize");
 
 		COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
 	}
@@ -169,28 +170,28 @@ public class ProtobufJavaZero{
 
 
 	/**
-	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that
-	 * compute the sizes of repeated fields of this type.
+	 * Maps protobuf primitive types to the names of the methods in {@link Codec} that return the
+	 * sizes of packed repeated fields of this type.
 	 */
 	@NotNull
-	private static final Map<Type, String> COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE;
+	private static final Map<Type, String> PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE;
 	static{
 		Map<Type, String> methodNames = new EnumMap<>(Type.class);
-		methodNames.put(Type.TYPE_DOUBLE, "computeRepeatedDoubleFieldSize");
-		methodNames.put(Type.TYPE_FLOAT, "computeRepeatedFloatFieldSize");
-		methodNames.put(Type.TYPE_INT32, "computeRepeatedInt32FieldSize");
-		methodNames.put(Type.TYPE_INT64, "computeRepeatedInt64FieldSize");
-		methodNames.put(Type.TYPE_UINT32, "computeRepeatedUInt32FieldSize");
-		methodNames.put(Type.TYPE_UINT64, "computeRepeatedUInt64FieldSize");
-		methodNames.put(Type.TYPE_SINT32, "computeRepeatedSInt32FieldSize");
-		methodNames.put(Type.TYPE_SINT64, "computeRepeatedSInt64FieldSize");
-		methodNames.put(Type.TYPE_FIXED32, "computeRepeatedFixed32FieldSize");
-		methodNames.put(Type.TYPE_FIXED64, "computeRepeatedFixed64FieldSize");
-		methodNames.put(Type.TYPE_SFIXED32, "computeRepeatedSFixed32FieldSize");
-		methodNames.put(Type.TYPE_SFIXED64, "computeRepeatedSFixed64FieldSize");
-		methodNames.put(Type.TYPE_BOOL, "computeRepeatedBoolFieldSize");
+		methodNames.put(Type.TYPE_DOUBLE, "packedRepeatedDoubleFieldSize");
+		methodNames.put(Type.TYPE_FLOAT, "packedRepeatedFloatFieldSize");
+		methodNames.put(Type.TYPE_INT32, "packedRepeatedInt32FieldSize");
+		methodNames.put(Type.TYPE_INT64, "packedRepeatedInt64FieldSize");
+		methodNames.put(Type.TYPE_UINT32, "packedRepeatedUInt32FieldSize");
+		methodNames.put(Type.TYPE_UINT64, "packedRepeatedUInt64FieldSize");
+		methodNames.put(Type.TYPE_SINT32, "packedRepeatedSInt32FieldSize");
+		methodNames.put(Type.TYPE_SINT64, "packedRepeatedSInt64FieldSize");
+		methodNames.put(Type.TYPE_FIXED32, "packedRepeatedFixed32FieldSize");
+		methodNames.put(Type.TYPE_FIXED64, "packedRepeatedFixed64FieldSize");
+		methodNames.put(Type.TYPE_SFIXED32, "packedRepeatedSFixed32FieldSize");
+		methodNames.put(Type.TYPE_SFIXED64, "packedRepeatedSFixed64FieldSize");
+		methodNames.put(Type.TYPE_BOOL, "packedRepeatedBoolFieldSize");
 
-		COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE = Collections.unmodifiableMap(methodNames);
+		PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE = Collections.unmodifiableMap(methodNames);
 	}
 
 
@@ -333,21 +334,23 @@ public class ProtobufJavaZero{
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			Type fieldType = field.getType();
 			int fieldNumber = field.getNumber();
-			String getterName = fieldGetterName(field.getName(), fieldType);
+			String getterName = fieldGetterName(field);
 			String primitiveWriterMethodName = WRITE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			if (field.hasLabel() && (field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED)){ // Repeated field
+			if (isRepeated(field)){ // Repeated field
 
-				// Generates code like so:
-				// int[] _arr = value.getArr();
-				// if (arr != null){
-				//   output.writeUInt32NoTag(10);
-				//   output.writeUInt32NoTagcomputeRepeatedInt32FieldSize(_arr));
-				//   for (int i = 0; i < _arr.length; ++i)
-				//     output.writeInt32NoTag(_arr[i]);
-				// }
-				String computeRepeatedSizeMethodName = COMPUTE_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.get(fieldType);
+				String computeRepeatedSizeMethodName = PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.get(fieldType);
 				if (computeRepeatedSizeMethodName != null){ // A type that is packed when repeated
+
+					// Generates code like so:
+					// int[] _arr = value.getArr();
+					// if (arr != null){
+					//   output.writeUInt32NoTag(10);
+					//   output.writeUInt32NoTagcomputeRepeatedInt32FieldSize(_arr));
+					//   for (int i = 0; i < _arr.length; ++i)
+					//     output.writeInt32NoTag(_arr[i]);
+					// }
+
 					String writeNoTagMethod = WRITE_NO_TAG_METHOD_NAMES_BY_TYPE.get(fieldType);
 					String javaTypeName = javaTypeName(field);
 					String fieldValueLocalVarName = "_" + field.getName();
@@ -405,6 +408,7 @@ public class ProtobufJavaZero{
 		// For each field, create a local variable to hold it
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			String fieldName = field.getName();
+			Type fieldType = field.getType();
 			String javaTypeName = javaTypeName(field);
 			if (javaTypeName == null){
 				System.err.println("Field type " + field.getType() + " is not supported yet");
@@ -413,8 +417,12 @@ public class ProtobufJavaZero{
 
 			String defaultValue = defaultJavaValue(field);
 
-			// e.g. int field = 0;
-			methodBuilder.addStatement("$L $L = $L", javaTypeName, fieldName, defaultValue);
+			if (!isRepeated(field))
+				methodBuilder.addStatement("$L $L = $L", javaTypeName, fieldName, defaultValue); // e.g. int field = 0;
+			else if (PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.containsKey(fieldType))
+				methodBuilder.addStatement("$L[] $L = $L", javaTypeName, fieldName, defaultValue); // e.g. int[] field = 0;
+			else
+				methodBuilder.addStatement("$L $L = $L", arrayListOf(javaTypeName), fieldName, defaultValue); // e.g. int[] field = 0;
 		}
 
 
@@ -446,7 +454,10 @@ public class ProtobufJavaZero{
 			int tagValue = WireFormatProxy.makeTag(field.getNumber(), fieldType);
 			String primitiveReaderMethodName = READ_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			if (primitiveReaderMethodName != null){ // A primitive type
+			if (isRepeated(field)){ // Repeated field
+				// TODO: read a repeated field
+			}
+			else if (primitiveReaderMethodName != null){ // A primitive type
 				// e.g. case 81: intField = input.readInt32(); break;
 				switchBuilder.add("case $L: $L = $N.$L(); break;\n",
 						tagValue, fieldName, inputParam, primitiveReaderMethodName);
@@ -504,11 +515,14 @@ public class ProtobufJavaZero{
 
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			Type fieldType = field.getType();
-			String getterName = fieldGetterName(field.getName(), fieldType);
+			String getterName = fieldGetterName(field);
 			String primitiveSizeComputerMethodName = COMPUTE_SIZE_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
-			if (primitiveSizeComputerMethodName != null){ // A primitive type
-				// e.g. size += computeFloatFieldSize(2, value.getSecondField())
+			if (isRepeated(field)){
+				// TODO: compute the size of a repeated field
+			}
+			else if (primitiveSizeComputerMethodName != null){ // A primitive type
+				// e.g. size += floatFieldSize(2, value.getSecondField())
 				methodBuilder.addStatement("size += $L($L, $N.$N())",
 						primitiveSizeComputerMethodName, field.getNumber(), value, getterName);
 			}
@@ -639,17 +653,30 @@ public class ProtobufJavaZero{
 
 
 	/**
-	 * Returns the name of the getter method we expect to be present in the user-defined type for a
-	 * message field of the given name, as defined in the proto file.
+	 * Returns the type name of {@link ArrayList} parameterized with the given Java type.
+	 */
+	private static TypeName arrayListOf(@NotNull String javaType){
+		return ParameterizedTypeName.get(ClassName.get(ArrayList.class), ClassName.bestGuess(javaType));
+	}
+
+
+
+	/**
+	 * Returns the name of the getter method we expect to be present in the user-defined type for
+	 * the give proto field.
 	 */
 	@NotNull
-	private static String fieldGetterName(@NotNull String name, @NotNull Type type){
+	private static String fieldGetterName(@NotNull FieldDescriptorProto field){
+		Type type = field.getType();
+		String name = field.getName();
+
 		// If the field is boolean and already starts with "is_", don't duplicate it.
 		// For example: "is_red", should become "isRed", not "isIsRed".
-		if ((type == Type.TYPE_BOOL) && name.startsWith("is_"))
+		boolean isBoolean = (type == Type.TYPE_BOOL) && !isRepeated(field);
+		if (isBoolean && name.startsWith("is_"))
 			name = name.substring(3);
 
-		return ((type == Type.TYPE_BOOL) ? "is" : "get") +
+		return (isBoolean ? "is" : "get") +
 				CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
 	}
 
@@ -720,6 +747,9 @@ public class ProtobufJavaZero{
 	 */
 	@NotNull
 	private static String defaultJavaValue(@NotNull FieldDescriptorProto field){
+		if (isRepeated(field))
+			return "null";
+
 		switch (field.getType()){
 			case TYPE_BOOL:
 				return "false";
@@ -731,6 +761,15 @@ public class ProtobufJavaZero{
 			default:
 				return "0";
 		}
+	}
+
+
+
+	/**
+	 * Returns whether the given field has a "repeated" label.
+	 */
+	private static boolean isRepeated(@NotNull FieldDescriptorProto field){
+		return field.hasLabel() && (field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED);
 	}
 
 

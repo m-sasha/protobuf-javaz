@@ -28,10 +28,10 @@ message RepeatedColorMessage{
 
 message RepeatedTypesMessage{
 
-    repeated int32 intValues = 1;
-    repeated double doubleValues = 2;
-    repeated string stringValues = 3;
-    repeated IntMessage intMessages = 4;
-    repeated bool boolValues = 5;
+    repeated int32 int_values = 1;
+    repeated double double_values = 2;
+    repeated string string_values = 3;
+    repeated IntMessage int_messages = 4;
+    repeated bool bool_values = 5;
 
 }

@@ -1,8 +1,8 @@
 package com.maryanovsky.pbjz.gen;
 
 import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.maryanovsky.pbjz.runtime.Codec;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
@@ -12,11 +12,19 @@ import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import javax.lang.model.element.Modifier;
 
-import static com.maryanovsky.pbjz.gen.Utils.*;
+import static com.maryanovsky.pbjz.gen.Utils.READ_METHOD_NAMES_BY_PRIMITIVE_TYPE;
+import static com.maryanovsky.pbjz.gen.Utils.arrayListOf;
+import static com.maryanovsky.pbjz.gen.Utils.codecInstanceExpr;
+import static com.maryanovsky.pbjz.gen.Utils.defaultJavaValue;
+import static com.maryanovsky.pbjz.gen.Utils.isPacked;
+import static com.maryanovsky.pbjz.gen.Utils.isRepeated;
+import static com.maryanovsky.pbjz.gen.Utils.javaTypeName;
+import static com.maryanovsky.pbjz.gen.Utils.notNull;
 
 
 
@@ -48,24 +56,7 @@ public class ReadGenerator{
 				.addException(IOException.class);
 
 		// For each field, create a local variable to hold it
-		for (FieldDescriptorProto field : descriptor.getFieldList()){
-			String fieldName = field.getName();
-			FieldDescriptorProto.Type fieldType = field.getType();
-			String javaTypeName = javaTypeName(field);
-			if (javaTypeName == null){
-				System.err.println("Field type " + field.getType() + " is not supported yet");
-				return methodBuilder.build();
-			}
-
-			String defaultValue = defaultJavaValue(field);
-
-			if (!isRepeated(field))
-				methodBuilder.addStatement("$L $L = $L", javaTypeName, fieldName, defaultValue); // e.g. int field = 0;
-			else if (PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.containsKey(fieldType))
-				methodBuilder.addStatement("$L[] $L = $L", javaTypeName, fieldName, defaultValue); // e.g. int[] field = 0;
-			else
-				methodBuilder.addStatement("$L $L = $L", arrayListOf(javaTypeName), fieldName, defaultValue); // e.g. int[] field = 0;
-		}
+		methodBuilder.addCode(genDeclareLocalVariablesForFields(descriptor));
 
 
 		// Generates code like so:
@@ -87,17 +78,26 @@ public class ReadGenerator{
 		CodeBlock.Builder whileNotDoneBuilder = CodeBlock.builder().beginControlFlow("while (!$L)", doneVar);
 
 		String tagVar = "tag";
-		whileNotDoneBuilder.addStatement("int $L = $L.readTag()", tagVar, inputParam.name);
+		whileNotDoneBuilder.addStatement("int $L = $N.readTag()", tagVar, inputParam);
 		CodeBlock.Builder switchBuilder = CodeBlock.builder().beginControlFlow("switch($L)", tagVar);
 		switchBuilder.add("case 0: $L = true; break;\n", doneVar);
 		for (FieldDescriptorProto field : descriptor.getFieldList()){
 			FieldDescriptorProto.Type fieldType = field.getType();
-			String fieldName = field.getName();
+			String fieldName = localVarName(field);
 			int tagValue = WireFormatProxy.makeTag(field.getNumber(), fieldType);
 			String primitiveReaderMethodName = READ_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
 
 			if (isRepeated(field)){ // Repeated field
-				// TODO: read a repeated field
+				if (isPacked(fieldType)){
+					switchBuilder.add("case $L:", tagValue)
+							.beginControlFlow("")
+							.add(genPackedRepeatedFieldReader(field, inputParam))
+							.endControlFlow()
+							.add("break;");
+				}
+				else{
+					// TODO: Read non-packed repeated types
+				}
 			}
 			else if (primitiveReaderMethodName != null){ // A primitive type
 				// e.g. case 81: intField = input.readInt32(); break;
@@ -124,7 +124,7 @@ public class ReadGenerator{
 
 		// Generates e.g. return new Type(var1, ...);
 		String newInstanceArgs = descriptor.getFieldList().stream()
-				.map(FieldDescriptorProto::getName)
+				.map(ReadGenerator::localVarName)
 				.collect(Collectors.joining(", "));
 
 		CodeBlock.Builder returnStatement = CodeBlock.builder()
@@ -135,6 +135,75 @@ public class ReadGenerator{
 		methodBuilder.addStatement(returnStatement.build());
 
 		return methodBuilder.build();
+	}
+
+
+
+	/**
+	 * Generates code that declares a local variable for each field in the type described by the
+	 * given descriptor.
+	 */
+	private static CodeBlock genDeclareLocalVariablesForFields(@NotNull DescriptorProto descriptor){
+		CodeBlock.Builder code = CodeBlock.builder();
+
+		for (FieldDescriptorProto field : descriptor.getFieldList()){
+			String javaTypeName = javaTypeName(field);
+			if (javaTypeName == null){
+				System.err.println("Field type " + field.getType() + " is not supported yet");
+				break;
+			}
+
+			String localVarName = localVarName(field);
+			String defaultValue = defaultJavaValue(field);
+
+			if (isRepeated(field))
+				code.addStatement("$T $L = $L", arrayListOf(javaTypeName), localVarName, defaultValue); // e.g. ArrayList<UserType> _field = null;
+			else
+				code.addStatement("$L $L = $L", javaTypeName, localVarName, defaultValue); // e.g. int _field = 0;
+		}
+
+		return code.build();
+	}
+
+
+
+	/**
+	 * Generates code that reads a packed repeated field into a local variable.
+	 */
+	private static CodeBlock genPackedRepeatedFieldReader(@NotNull FieldDescriptorProto field, @NotNull ParameterSpec inputParam){
+		// Generates code like this:
+		// int length = input.readRawVarint32();
+		// int limit = input.pushLimit(length);
+		// values_ = new java.util.ArrayList<java.lang.Integer>();
+		// while (input.getBytesUntilLimit() > 0) {
+		//     values_.add(input.readInt32());
+		// }
+		// input.popLimit(limit);
+
+		CodeBlock.Builder code = CodeBlock.builder();
+
+		String localVarName = localVarName(field);
+		String readMethodName = READ_METHOD_NAMES_BY_PRIMITIVE_TYPE.get(field.getType());
+
+		code.addStatement("int length = $N.readRawVarint32()", inputParam);
+		code.addStatement("int limit = $N.pushLimit(length)", inputParam);
+		code.addStatement("$L = new $T<>()", localVarName, ArrayList.class);
+		code.beginControlFlow("while($N.getBytesUntilLimit() > 0)", inputParam)
+			.addStatement("$L.add($N.$L())", localVarName, inputParam, readMethodName)
+			.endControlFlow();
+		code.addStatement("$N.popLimit(limit)", inputParam);
+
+		return code.build();
+	}
+
+
+
+	/**
+	 * Returns the name of the local variable that should be used for storing the value of the given
+	 * field.
+	 */
+	private static String localVarName(@NotNull FieldDescriptorProto field){
+		return "_" + field.getName();
 	}
 
 

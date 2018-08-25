@@ -19,15 +19,15 @@ public class RepeatedTypesMessage{
 //	repeated bool boolValues = 5;
 
 
-	private final int[] intValues;
-	private final double[] doubleValues;
+	private final List<Integer> intValues;
+	private final List<Double> doubleValues;
 	private final List<String> stringValues;
 	private final List<IntMessage> intMessages;
-	private final boolean[] boolValues;
+	private final List<Boolean> boolValues;
 
 
 
-	public RepeatedTypesMessage(int[] intValues, double[] doubleValues, List<String> stringValues, List<IntMessage> intMessages, boolean[] boolValues){
+	public RepeatedTypesMessage(List<Integer> intValues, List<Double> doubleValues, List<String> stringValues, List<IntMessage> intMessages, List<Boolean> boolValues){
 		this.intValues = intValues;
 		this.doubleValues = doubleValues;
 		this.stringValues = stringValues;
@@ -37,13 +37,13 @@ public class RepeatedTypesMessage{
 
 
 
-	public int[] getIntValues(){
+	public List<Integer> getIntValues(){
 		return intValues;
 	}
 
 
 
-	public double[] getDoubleValues(){
+	public List<Double> getDoubleValues(){
 		return doubleValues;
 	}
 
@@ -61,7 +61,7 @@ public class RepeatedTypesMessage{
 
 
 
-	public boolean[] getBoolValues(){
+	public List<Boolean> getBoolValues(){
 		return boolValues;
 	}
 
@@ -72,22 +72,18 @@ public class RepeatedTypesMessage{
 		if(this == o) return true;
 		if(o == null || getClass() != o.getClass()) return false;
 		RepeatedTypesMessage that = (RepeatedTypesMessage) o;
-		return Arrays.equals(intValues, that.intValues) &&
-				Arrays.equals(doubleValues, that.doubleValues) &&
+		return Objects.equals(intValues, that.intValues) &&
+				Objects.equals(doubleValues, that.doubleValues) &&
 				Objects.equals(stringValues, that.stringValues) &&
 				Objects.equals(intMessages, that.intMessages) &&
-				Arrays.equals(boolValues, that.boolValues);
+				Objects.equals(boolValues, that.boolValues);
 	}
 
 
 
 	@Override
 	public int hashCode(){
-		int result = Objects.hash(stringValues, intMessages);
-		result = 31 * result + Arrays.hashCode(intValues);
-		result = 31 * result + Arrays.hashCode(doubleValues);
-		result = 31 * result + Arrays.hashCode(boolValues);
-		return result;
+		return Objects.hash(intValues, doubleValues, stringValues, intMessages, boolValues);
 	}
 
 

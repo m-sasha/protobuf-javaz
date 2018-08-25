@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 
 
 
@@ -73,8 +74,8 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code double} field, not including the tag.
 	 */
-	protected static int packedRepeatedDoubleFieldSize(@NotNull double[] values){
-		return values.length * 8; // See CodedOutputStream.computeDoubleSizeNoTag
+	protected static int packedRepeatedDoubleFieldSize(@NotNull Collection<Double> values){
+		return values.size() * 8; // See CodedOutputStream.computeDoubleSizeNoTag
 	}
 
 
@@ -101,8 +102,8 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code float} field, not including the tag.
 	 */
-	protected static int packedRepeatedFloatFieldSize(@NotNull float[] values){
-		return values.length * 4; // See CodedOutputStream.computeFloatSizeNoTag
+	protected static int packedRepeatedFloatFieldSize(@NotNull Collection<Float> values){
+		return values.size() * 4; // See CodedOutputStream.computeFloatSizeNoTag
 	}
 
 
@@ -130,10 +131,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code int32} field, not including the tag.
 	 */
-	protected static int packedRepeatedInt32FieldSize(@NotNull int[] values){
+	protected static int packedRepeatedInt32FieldSize(@NotNull Collection<Integer> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeInt32SizeNoTag(values[i]);
+		for (Integer item : values)
+			size += CodedOutputStream.computeInt32SizeNoTag(item);
 		return size;
 	}
 
@@ -162,10 +163,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code int64} field, not including the tag.
 	 */
-	protected static int packedRepeatedInt64FieldSize(@NotNull long[] values){
+	protected static int packedRepeatedInt64FieldSize(@NotNull Collection<Long> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeInt64SizeNoTag(values[i]);
+		for (Long item : values)
+			size += CodedOutputStream.computeInt64SizeNoTag(item);
 		return size;
 	}
 
@@ -194,10 +195,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code uint32} field, not including the tag.
 	 */
-	protected static int packedRepeatedUInt32FieldSize(@NotNull int[] values){
+	protected static int packedRepeatedUInt32FieldSize(@NotNull Collection<Integer> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeUInt32SizeNoTag(values[i]);
+		for (Integer item : values)
+			size += CodedOutputStream.computeUInt32SizeNoTag(item);
 		return size;
 	}
 
@@ -226,10 +227,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code uint64} field, not including the tag.
 	 */
-	protected static int packedRepeatedUInt64FieldSize(@NotNull long[] values){
+	protected static int packedRepeatedUInt64FieldSize(@NotNull Collection<Long> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeUInt64SizeNoTag(values[i]);
+		for (Long item : values)
+			size += CodedOutputStream.computeUInt64SizeNoTag(item);
 		return size;
 	}
 
@@ -258,10 +259,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code sint32} field, not including the tag.
 	 */
-	protected static int packedRepeatedSInt32FieldSize(@NotNull int[] values){
+	protected static int packedRepeatedSInt32FieldSize(@NotNull Collection<Integer> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeSInt32SizeNoTag(values[i]);
+		for (Integer item : values)
+			size += CodedOutputStream.computeSInt32SizeNoTag(item);
 		return size;
 	}
 
@@ -290,10 +291,10 @@ public abstract class Codec<T>{
 	/**
 	 * Returns the serialized size of a packed repeated {@code sint64} field, not including the tag.
 	 */
-	protected static int packedRepeatedSInt64FieldSize(@NotNull long[] values){
+	protected static int packedRepeatedSInt64FieldSize(@NotNull Collection<Long> values){
 		int size = 0;
-		for (int i = 0; i < values.length; i++)
-			size += CodedOutputStream.computeSInt64SizeNoTag(values[i]);
+		for (Long item : values)
+			size += CodedOutputStream.computeSInt64SizeNoTag(item);
 		return size;
 	}
 
@@ -323,8 +324,8 @@ public abstract class Codec<T>{
 	 * Returns the serialized size of a packed repeated {@code fixed32} field, not including the
 	 * tag.
 	 */
-	protected static int packedRepeatedFixed32FieldSize(@NotNull int[] values){
-		return values.length * 4; // See CodedOutputStream.computeFixed32SizeNoTag
+	protected static int packedRepeatedFixed32FieldSize(@NotNull Collection<Integer> values){
+		return values.size() * 4; // See CodedOutputStream.computeFixed32SizeNoTag
 	}
 
 
@@ -353,8 +354,8 @@ public abstract class Codec<T>{
 	 * Returns the serialized size of a packed repeated {@code fixed64} field, not including the
 	 * tag.
 	 */
-	protected static int packedRepeatedFixed64FieldSize(@NotNull long[] values){
-		return values.length * 8; // See CodedOutputStream.computeFixed64SizeNoTag
+	protected static int packedRepeatedFixed64FieldSize(@NotNull Collection<Long> values){
+		return values.size() * 8; // See CodedOutputStream.computeFixed64SizeNoTag
 	}
 
 
@@ -383,8 +384,8 @@ public abstract class Codec<T>{
 	 * Returns the serialized size of a packed repeated {@code sfixed32} field, not including the
 	 * tag.
 	 */
-	protected static int packedRepeatedSFixed32FieldSize(@NotNull int[] values){
-		return values.length * 4; // See CodedOutputStream.computeSFixed32SizeNoTag
+	protected static int packedRepeatedSFixed32FieldSize(@NotNull Collection<Integer> values){
+		return values.size() * 4; // See CodedOutputStream.computeSFixed32SizeNoTag
 	}
 
 
@@ -413,8 +414,8 @@ public abstract class Codec<T>{
 	 * Returns the serialized size of a packed repeated {@code sfixed64} field, not including the
 	 * tag.
 	 */
-	protected static int packedRepeatedSFixed64FieldSize(@NotNull long[] values){
-		return values.length * 8; // See CodedOutputStream.computeSFixed64SizeNoTag
+	protected static int packedRepeatedSFixed64FieldSize(@NotNull Collection<Long> values){
+		return values.size() * 8; // See CodedOutputStream.computeSFixed64SizeNoTag
 	}
 
 
@@ -442,8 +443,8 @@ public abstract class Codec<T>{
 	 * Returns the serialized size of a packed repeated {@code boolean} field, not including the
 	 * tag.
 	 */
-	protected static int packedRepeatedBoolFieldSize(@NotNull boolean[] values){
-		return values.length; // See CodedOutputStream.computeBoolSizeNoTag
+	protected static int packedRepeatedBoolFieldSize(@NotNull Collection<Boolean> values){
+		return values.size(); // See CodedOutputStream.computeBoolSizeNoTag
 	}
 
 

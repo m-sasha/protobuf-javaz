@@ -59,12 +59,12 @@ public class WriteGenerator{
 			methodBuilder.addCode("\n");
 
 			if (isRepeated(field)){ // Repeated field
-				if (isPacked(field.getType())){
+				if (isPacked(fieldType)){
 					methodBuilder.addComment("Write $L", field.getName());
 					methodBuilder.addCode(genPackedRepeatedFieldWriter(field, valueParam, outputParam));
 				}
 				else{
-					// TODO: Implemented non-packed repeated types
+					// TODO: Write non-packed repeated types
 				}
 			}
 			else if (primitiveWriterMethodName != null){ // A primitive type
@@ -98,27 +98,33 @@ public class WriteGenerator{
 		// int[] _arr = value.getArr();
 		// if (arr != null){
 		//   output.writeUInt32NoTag(10);
-		//   output.writeUInt32NoTagcomputeRepeatedInt32FieldSize(_arr));
+		//   output.writeUInt32NoTag(packedRepeatedInt32FieldSize(_arr));
 		//   for (int i = 0; i < _arr.length; ++i)
 		//     output.writeInt32NoTag(_arr[i]);
 		// }
 
 		CodeBlock.Builder code = CodeBlock.builder();
 
+		String javaTypeName = javaTypeName(field);
+		if (javaTypeName == null){ // Not a supported type yet
+			System.err.println("Field type " + field.getType() + " is not supported yet");
+			return code.build();
+		}
+
 		Type fieldType = field.getType();
 		String getterName = fieldGetterName(field);
 		String computeRepeatedSizeMethodName = PACKED_REPEATED_SIZE_METHOD_NAMES_BY_TYPE.get(fieldType);
 		String writeNoTagMethod = WRITE_NO_TAG_METHOD_NAMES_BY_TYPE.get(fieldType);
-		String javaTypeName = javaTypeName(field);
+		TypeName collectionType = collectionOf(javaTypeName);
 		String fieldValueLocalVarName = "_" + field.getName();
 
-		code.addStatement("$L[] $L = $N.$N()", javaTypeName, fieldValueLocalVarName, valueParam, getterName); // e.g. int[] _arr = value.getArr()
+		code.addStatement("$T $L = $N.$N()", collectionType, fieldValueLocalVarName, valueParam, getterName); // e.g. Collection<Integer> _arr = value.getArr()
 		code.beginControlFlow("if ($L != null)", fieldValueLocalVarName)
 				.addStatement("$N.writeUInt32NoTag($L)", outputParam, WireFormatProxy.makeLengthDelimitedTag(field.getNumber()))
 				.addStatement("$N.writeUInt32NoTag($L($L))", outputParam, computeRepeatedSizeMethodName, fieldValueLocalVarName)
 				.add(CodeBlock.builder()
-						.beginControlFlow("for (int i = 0; i < $L.length; ++i)", fieldValueLocalVarName)
-						.addStatement("$N.$L($L[i])", outputParam, writeNoTagMethod, fieldValueLocalVarName)
+						.beginControlFlow("for ($L item : $L)", javaTypeName, fieldValueLocalVarName)
+						.addStatement("$N.$L(item)", outputParam, writeNoTagMethod)
 						.endControlFlow()
 						.build())
 				.endControlFlow();

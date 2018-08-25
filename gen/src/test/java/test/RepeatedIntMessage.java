@@ -1,6 +1,8 @@
 package test;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 
 
@@ -10,17 +12,17 @@ import java.util.Arrays;
 public class RepeatedIntMessage{
 
 
-	private final int[] values;
+	private final List<Integer> values;
 
 
 
-	public RepeatedIntMessage(int[] values){
+	public RepeatedIntMessage(List<Integer> values){
 		this.values = values;
 	}
 
 
 
-	public int[] getValues(){
+	public List<Integer> getValues(){
 		return values;
 	}
 
@@ -28,21 +30,18 @@ public class RepeatedIntMessage{
 
 	@Override
 	public boolean equals(Object o){
-		if (this == o)
-			return true;
-		if (o == null || getClass() != o.getClass())
-			return false;
-
+		if(this == o) return true;
+		if(o == null || getClass() != o.getClass()) return false;
 		RepeatedIntMessage that = (RepeatedIntMessage) o;
-		return Arrays.equals(values, that.values);
+		return Objects.equals(values, that.values);
 	}
 
 
 
 	@Override
 	public int hashCode(){
-		return Arrays.hashCode(values);
+		return Objects.hash(values);
 	}
 
-
+	
 }

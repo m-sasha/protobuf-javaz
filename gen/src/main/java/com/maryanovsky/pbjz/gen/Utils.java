@@ -18,6 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -106,24 +107,53 @@ public class Utils{
 	@NotNull
 	private static final Map<FieldDescriptorProto.Type, String> JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE;
 	static{
-		Map<FieldDescriptorProto.Type, String> methodNames = new EnumMap<>(FieldDescriptorProto.Type.class);
-		methodNames.put(FieldDescriptorProto.Type.TYPE_DOUBLE, "double");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_FLOAT, "float");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_INT32, "int");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_INT64, "long");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_UINT32, "int");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_UINT64, "long");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_SINT32, "int");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_SINT64, "long");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_FIXED32, "int");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_FIXED64, "long");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_SFIXED32, "int");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_SFIXED64, "long");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_BOOL, "boolean");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_STRING, "String");
-		methodNames.put(FieldDescriptorProto.Type.TYPE_BYTES, "byte[]");
+		Map<FieldDescriptorProto.Type, String> typeNames = new EnumMap<>(FieldDescriptorProto.Type.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_DOUBLE, "double");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FLOAT, "float");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_INT32, "int");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_INT64, "long");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_UINT32, "int");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_UINT64, "long");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SINT32, "int");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SINT64, "long");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FIXED32, "int");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FIXED64, "long");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SFIXED32, "int");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SFIXED64, "long");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_BOOL, "boolean");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_STRING, "String");
+		typeNames.put(FieldDescriptorProto.Type.TYPE_BYTES, "byte[]");
 
-		JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(methodNames);
+		JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(typeNames);
+	}
+
+
+
+	/**
+	 * Maps protobuf primitive types to the names of the corresponding Java types used as elements
+	 * in a collection.
+	 */
+	@NotNull
+	private static final Map<FieldDescriptorProto.Type, Class> JAVA_ELEMENT_TYPE_NAMES_BY_PRIMITIVE_TYPE;
+	static{
+		Map<FieldDescriptorProto.Type, Class> typeNames = new EnumMap<>(FieldDescriptorProto.Type.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_DOUBLE, Double.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FLOAT, Float.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_INT32, Integer.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_INT64, Long.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_UINT32, Integer.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_UINT64, Long.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SINT32, Integer.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SINT64, Long.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FIXED32, Integer.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_FIXED64, Long.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SFIXED32, Integer.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_SFIXED64, Long.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_BOOL, Boolean.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_STRING, String.class);
+		typeNames.put(FieldDescriptorProto.Type.TYPE_BYTES, byte[].class);
+
+		JAVA_ELEMENT_TYPE_NAMES_BY_PRIMITIVE_TYPE = Collections.unmodifiableMap(typeNames);
 	}
 
 
@@ -242,6 +272,15 @@ public class Utils{
 
 
 	/**
+	 * Returns the type name of {@link Collection} parameterized with the given Java type.
+	 */
+	public static TypeName collectionOf(@NotNull String javaType){
+		return ParameterizedTypeName.get(ClassName.get(Collection.class), ClassName.bestGuess(javaType));
+	}
+
+
+
+	/**
 	 * Returns the name of the getter method we expect to be present in the user-defined type for
 	 * the give proto field.
 	 */
@@ -300,14 +339,23 @@ public class Utils{
 
 
 	/**
-	 * Returns the name of the Java type for the corresponding field.
+	 * Returns the name of the Java type for the corresponding field. If the field a repeated one,
+	 * and the type is a Java primitive, returns the corresponding wrapper type.
 	 */
 	@Nullable
 	public static String javaTypeName(@NotNull FieldDescriptorProto field){
 		FieldDescriptorProto.Type fieldType = field.getType();
-		String javaTypeName = JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE.get(field.getType());
-		if (javaTypeName != null)
-			return javaTypeName;
+
+		if (isRepeated(field)){
+			Class javaType = JAVA_ELEMENT_TYPE_NAMES_BY_PRIMITIVE_TYPE.get(field.getType());
+			if (javaType != null)
+				return javaType.getTypeName();
+		}
+		else{
+			String javaTypeName = JAVA_TYPE_NAMES_BY_PRIMITIVE_TYPE.get(fieldType);
+			if (javaTypeName != null)
+				return javaTypeName;
+		}
 
 		if ((fieldType == FieldDescriptorProto.Type.TYPE_MESSAGE) ||
 				(fieldType == FieldDescriptorProto.Type.TYPE_ENUM)){ // A user-defined type, with a codec
